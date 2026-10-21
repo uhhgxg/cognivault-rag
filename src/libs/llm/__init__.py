@@ -1,11 +1,11 @@
 """
-LLM Module.
+LLM 模块。
 
-This package contains LLM client abstractions and implementations:
-- Base LLM class (text-only)
-- Base Vision LLM class (multimodal: text + image)
-- LLM factory
-- Provider implementations (OpenAI, Azure, Ollama, DeepSeek)
+本包包含 LLM 客户端的抽象接口与具体实现：
+- LLM 基类（仅文本）
+- Vision LLM 基类（多模态：文本 + 图片）
+- LLM 工厂
+- 各服务商实现（OpenAI、Azure、Ollama、DeepSeek）
 """
 
 from src.libs.llm.base_llm import BaseLLM, ChatResponse, Message
@@ -17,25 +17,25 @@ from src.libs.llm.azure_llm import AzureLLM, AzureLLMError
 from src.libs.llm.deepseek_llm import DeepSeekLLM, DeepSeekLLMError
 from src.libs.llm.ollama_llm import OllamaLLM, OllamaLLMError
 
-# Register text-only LLM providers with factory
+# 将仅处理文本的 LLM 提供方注册到工厂
 LLMFactory.register_provider("openai", OpenAILLM)
 LLMFactory.register_provider("azure", AzureLLM)
 LLMFactory.register_provider("deepseek", DeepSeekLLM)
 LLMFactory.register_provider("ollama", OllamaLLM)
 
-# Note: Vision LLM providers will be registered in task B9+
+# 注意：Vision LLM 提供方将在任务 B9+ 中注册
 
 __all__ = [
-    # Base classes
+    # 基类
     "BaseLLM",
     "BaseVisionLLM",
-    # Data types
+    # 数据类型
     "ChatResponse",
     "Message",
     "ImageInput",
-    # Factory
+    # 工厂
     "LLMFactory",
-    # Text-only LLM implementations
+    # 仅文本 LLM 的具体实现
     "OpenAILLM",
     "OpenAILLMError",
     "AzureLLM",
@@ -44,7 +44,7 @@ __all__ = [
     "DeepSeekLLMError",
     "OllamaLLM",
     "OllamaLLMError",
-    # Vision LLM implementations
+    # Vision LLM 的具体实现
     "OpenAIVisionLLM",
     "OpenAIVisionLLMError",
 ]

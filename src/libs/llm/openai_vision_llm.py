@@ -1,11 +1,10 @@
-"""OpenAI-compatible Vision LLM implementation.
+"""兼容 OpenAI 的 Vision LLM 实现。
 
-This module provides an OpenAI-compatible Vision LLM implementation for multimodal
-interactions (text + image). Supports GPT-4o and similar vision-capable models.
+本模块提供兼容 OpenAI 协议的 Vision LLM 实现，支持多模态交互（文本 + 图片）。
+支持 GPT-4o 等具备视觉能力的模型。
 
-When azure_endpoint is present in settings, the provider automatically constructs
-the Azure-compatible URL and uses api-key auth header, allowing the same OpenAI
-standard protocol to work against Azure OpenAI endpoints.
+当 settings 中存在 azure_endpoint 时，提供方会自动构造 Azure 兼容的 URL，
+并使用 api-key 认证请求头，使同一套 OpenAI 标准协议可以直接对接 Azure OpenAI 端点。
 """
 
 from __future__ import annotations
@@ -21,30 +20,29 @@ from src.libs.llm.base_vision_llm import BaseVisionLLM, ImageInput
 
 
 class OpenAIVisionLLMError(RuntimeError):
-    """Raised when OpenAI Vision API call fails."""
+    """当 OpenAI Vision API 调用失败时抛出。"""
 
 
 class OpenAIVisionLLM(BaseVisionLLM):
-    """OpenAI-compatible Vision LLM provider implementation.
-    
-    This class implements the BaseVisionLLM interface using the OpenAI standard
-    protocol. It supports both standard OpenAI endpoints and Azure OpenAI
-    endpoints in compatibility mode.
-    
-    When azure_endpoint is detected in settings.vision_llm, it automatically:
-    - Constructs the deployment-based URL
-    - Uses api-key header for authentication
-    - Appends api-version query parameter
-    
+    """兼容 OpenAI 的 Vision LLM 提供方实现。
+
+    本类使用 OpenAI 标准协议实现 BaseVisionLLM 接口。
+    同时支持标准 OpenAI 端点，以及兼容模式下的 Azure OpenAI 端点。
+
+    当检测到 settings.vision_llm 中存在 azure_endpoint 时，会自动：
+    - 构造基于 deployment 的 URL
+    - 使用 api-key 请求头做身份认证
+    - 追加 api-version 查询参数
+
     Attributes:
-        api_key: The API key for authentication.
-        base_url: The base URL for the API.
-        model: The model identifier / deployment name.
-        api_version: Optional API version (for Azure compat).
-        max_image_size: Maximum image dimension in pixels (default 2048).
-        default_temperature: Default temperature for generation.
-        default_max_tokens: Default max tokens for generation.
-    
+        api_key: 用于身份认证的 API 密钥。
+        base_url: API 的基础 URL。
+        model: 模型标识符 / 部署名称。
+        api_version: 可选的 API 版本（用于 Azure 兼容）。
+        max_image_size: 图片最大边长，单位为像素（默认 2048）。
+        default_temperature: 生成时使用的默认温度。
+        default_max_tokens: 生成时使用的默认最大 token 数。
+
     Example:
         >>> from src.core.settings import load_settings
         >>> settings = load_settings('config/settings.yaml')
@@ -52,9 +50,9 @@ class OpenAIVisionLLM(BaseVisionLLM):
         >>> image = ImageInput(path="diagram.png")
         >>> response = vision_llm.chat_with_image("Describe this", image)
     """
-    
+
     DEFAULT_BASE_URL = "https://api.openai.com/v1"
-    DEFAULT_MAX_IMAGE_SIZE = 2048  # pixels
+    DEFAULT_MAX_IMAGE_SIZE = 2048  # 像素
     
     def __init__(
         self,
@@ -64,35 +62,35 @@ class OpenAIVisionLLM(BaseVisionLLM):
         max_image_size: Optional[int] = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize the OpenAI Vision LLM provider.
-        
+        """初始化 OpenAI Vision LLM 提供方。
+
         Args:
-            settings: Application settings containing vision_llm configuration.
-            api_key: Optional API key override.
-            base_url: Optional base URL override.
-            max_image_size: Maximum image dimension in pixels for auto-compression.
-            **kwargs: Additional configuration overrides.
-        
+            settings: 应用配置，包含 vision_llm 相关配置。
+            api_key: 可选的 API 密钥覆盖值。
+            base_url: 可选的基础 URL 覆盖值。
+            max_image_size: 用于自动压缩的图片最大边长，单位为像素。
+            **kwargs: 其他配置覆盖项。
+
         Raises:
-            ValueError: If required configuration is missing.
+            ValueError: 当缺少必需配置时。
         """
-        # Get vision settings section
+        # 读取 vision 配置段
         vision_settings = getattr(settings, "vision_llm", None)
-        
-        # Temperature / max_tokens: vision_llm section > llm section defaults
+
+        # temperature / max_tokens 优先级：vision_llm 段 > llm 段默认值
         self.default_temperature = getattr(settings.llm, 'temperature', 0.0)
         self.default_max_tokens = getattr(settings.llm, 'max_tokens', 4096)
-        
-        # Model / deployment name
+
+        # 模型 / 部署名称
         vision_model = getattr(vision_settings, 'model', None) if vision_settings else None
         vision_dep = getattr(vision_settings, 'deployment_name', None) if vision_settings else None
         self.model = vision_dep or vision_model or settings.llm.model
-        
-        # Max image size
+
+        # 图片最大边长
         vision_max_size = getattr(vision_settings, 'max_image_size', None) if vision_settings else None
         self.max_image_size = max_image_size or vision_max_size or self.DEFAULT_MAX_IMAGE_SIZE
-        
-        # API key: explicit > vision_settings > llm settings > env var
+
+        # API 密钥优先级：显式传参 > vision_settings > llm settings > 环境变量
         self.api_key = api_key
         if not self.api_key and vision_settings:
             self.api_key = getattr(vision_settings, 'api_key', None)
@@ -105,33 +103,33 @@ class OpenAIVisionLLM(BaseVisionLLM):
                 "OpenAI API key not provided. Set in settings.yaml (vision_llm.api_key), "
                 "OPENAI_API_KEY environment variable, or pass api_key parameter."
             )
-        
-        # Azure-compatible mode detection
+
+        # 检测是否走 Azure 兼容模式
         azure_endpoint = None
         if vision_settings:
             azure_endpoint = getattr(vision_settings, 'azure_endpoint', None)
         if not azure_endpoint:
             azure_endpoint = getattr(settings.llm, 'azure_endpoint', None)
-        
+
         self.api_version = None
         if vision_settings:
             self.api_version = getattr(vision_settings, 'api_version', None)
         if not self.api_version:
             self.api_version = getattr(settings.llm, 'api_version', None)
-        
+
         self._use_azure_auth = False
-        
-        # Check for configured base_url in vision_llm or llm settings
+
+        # 检查 vision_llm 或 llm settings 中是否配置了 base_url
         config_base_url = None
         if vision_settings:
             config_base_url = getattr(vision_settings, 'base_url', None)
         if not config_base_url:
             config_base_url = getattr(settings.llm, 'base_url', None)
-        
+
         if base_url:
             self.base_url = base_url
         elif azure_endpoint:
-            # Azure-compatible mode
+            # Azure 兼容模式
             self.base_url = (
                 f"{azure_endpoint.rstrip('/')}/openai/deployments/{self.model}"
             )
@@ -142,7 +140,7 @@ class OpenAIVisionLLM(BaseVisionLLM):
             self.base_url = config_base_url
         else:
             self.base_url = self.DEFAULT_BASE_URL
-        
+
         self._extra_config = kwargs
     
     def chat_with_image(
@@ -153,45 +151,45 @@ class OpenAIVisionLLM(BaseVisionLLM):
         trace: Optional[Any] = None,
         **kwargs: Any,
     ) -> ChatResponse:
-        """Generate a response based on text prompt and image input.
-        
+        """根据文本提示和图片输入生成响应。
+
         Args:
-            text: The text prompt or question about the image.
-            image: The image input (path, bytes, or base64).
-            messages: Optional conversation history for context.
-            trace: Optional TraceContext for observability.
-            **kwargs: Override parameters (temperature, max_tokens, etc.).
-        
+            text: 关于图片的文本提示或问题。
+            image: 图片输入（路径、字节或 base64）。
+            messages: 可选的对话历史，用于提供上下文。
+            trace: 可选的 TraceContext，用于可观测性。
+            **kwargs: 覆盖参数（temperature、max_tokens 等）。
+
         Returns:
-            ChatResponse containing the generated text and metadata.
-        
+            包含生成文本和元数据的 ChatResponse。
+
         Raises:
-            ValueError: If text or image input is invalid.
-            OpenAIVisionLLMError: If API call fails.
+            ValueError: 当 text 或图片输入无效时。
+            OpenAIVisionLLMError: 当 API 调用失败时。
         """
-        # Validate inputs
+        # 校验输入
         self.validate_text(text)
         self.validate_image(image)
-        
-        # Preprocess image (compress if needed)
+
+        # 预处理图片（如有必要则压缩）
         processed_image = self.preprocess_image(
             image,
             max_size=(self.max_image_size, self.max_image_size)
         )
-        
-        # Convert image to base64
+
+        # 将图片转为 base64
         image_base64 = self._get_image_base64(processed_image)
-        
-        # Prepare request parameters
+
+        # 准备请求参数
         temperature = kwargs.get("temperature", self.default_temperature)
         max_tokens = kwargs.get("max_tokens", self.default_max_tokens)
-        
-        # Build message list
+
+        # 构造消息列表
         api_messages = []
         if messages:
             api_messages.extend([{"role": m.role, "content": m.content} for m in messages])
-        
-        # Add current text + image message
+
+        # 追加当前 文本 + 图片 消息
         current_message = {
             "role": "user",
             "content": [
@@ -208,8 +206,8 @@ class OpenAIVisionLLM(BaseVisionLLM):
             ]
         }
         api_messages.append(current_message)
-        
-        # Make API call
+
+        # 调用 API
         try:
             response_data = self._call_api(
                 messages=api_messages,
@@ -242,26 +240,26 @@ class OpenAIVisionLLM(BaseVisionLLM):
         image: ImageInput,
         max_size: Optional[tuple[int, int]] = None,
     ) -> ImageInput:
-        """Preprocess image before sending to Vision API.
-        
-        Compresses image if it exceeds max_size to reduce payload size.
-        
+        """在发送给 Vision API 之前对图片做预处理。
+
+        若图片超过 max_size，则压缩以减小负载大小。
+
         Args:
-            image: The input image to preprocess.
-            max_size: Maximum dimensions (width, height) in pixels.
-        
+            image: 待预处理的输入图片。
+            max_size: 最大尺寸（宽、高），单位为像素。
+
         Returns:
-            Preprocessed ImageInput with compressed data if needed.
+            预处理后的 ImageInput（如需压缩则包含压缩后的数据）。
         """
         if not max_size:
             return image
-        
+
         try:
             from PIL import Image
         except ImportError:
             return image
-        
-        # Get image bytes
+
+        # 获取图片字节
         if image.data:
             image_bytes = image.data
         elif image.path:
@@ -270,35 +268,35 @@ class OpenAIVisionLLM(BaseVisionLLM):
             return image
         else:
             return image
-        
-        # Load image and check size
+
+        # 加载图片并检查尺寸
         img = Image.open(io.BytesIO(image_bytes))
         width, height = img.size
-        
+
         max_width, max_height = max_size
         if width <= max_width and height <= max_height:
             return image
-        
-        # Calculate new size maintaining aspect ratio
+
+        # 按比例计算新尺寸（保持宽高比）
         ratio = min(max_width / width, max_height / height)
         new_size = (int(width * ratio), int(height * ratio))
-        
-        # Resize image
+
+        # 调整图片尺寸
         img_resized = img.resize(new_size, Image.Resampling.LANCZOS)
-        
-        # Convert to bytes
+
+        # 转回字节
         buffer = io.BytesIO()
         img_format = img.format or "PNG"
         img_resized.save(buffer, format=img_format)
         compressed_bytes = buffer.getvalue()
-        
+
         return ImageInput(
             data=compressed_bytes,
             mime_type=image.mime_type
         )
-    
+
     def _get_image_base64(self, image: ImageInput) -> str:
-        """Convert ImageInput to base64 string."""
+        """将 ImageInput 转为 base64 字符串。"""
         try:
             if image.base64:
                 return image.base64
@@ -320,25 +318,25 @@ class OpenAIVisionLLM(BaseVisionLLM):
         temperature: float,
         max_tokens: int,
     ) -> dict:
-        """Make HTTP request to the Vision API.
-        
+        """向 Vision API 发起 HTTP 请求。
+
         Args:
-            messages: List of API-formatted messages.
-            temperature: Generation temperature.
-            max_tokens: Maximum tokens to generate.
-        
+            messages: API 格式的消息列表。
+            temperature: 生成温度。
+            max_tokens: 最大生成 token 数。
+
         Returns:
-            API response as dictionary.
-        
+            API 响应（字典形式）。
+
         Raises:
-            OpenAIVisionLLMError: If API call fails.
+            OpenAIVisionLLMError: 当 API 调用失败时。
         """
         import httpx
-        
+
         url = f"{self.base_url.rstrip('/')}/chat/completions"
         if self.api_version:
             url += f"?api-version={self.api_version}"
-        
+
         if self._use_azure_auth:
             headers = {
                 "api-key": self.api_key,
@@ -399,7 +397,7 @@ class OpenAIVisionLLM(BaseVisionLLM):
             ) from last_error
     
     def _parse_error_response(self, response: Any) -> str:
-        """Parse error details from API response."""
+        """从 API 响应中解析错误详情。"""
         try:
             error_data = response.json()
             if "error" in error_data:

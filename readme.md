@@ -1,10 +1,12 @@
 ﻿<div align="center">
 
-<img src="ragent.png" width="280" alt="ragent logo">
+<img src="ragent.png" width="280" alt="Cognivault logo">
+
+# Cognivault
 
 ###  **当 RAG 只会机械匹配，你需要一个懂上下文的 Agent**
 
-[![ragent](https://img.shields.io/badge/ragent-0.4.0-purple.svg)](https://github.com/yourname/ragent)
+[![Cognivault](https://img.shields.io/badge/Cognivault-0.1.0-purple.svg)]
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.2.x-blue.svg)](https://langchain-ai.github.io/langgraph/)
 [![LangChain](https://img.shields.io/badge/LangChain-0.3.x-blue.svg)](https://python.langchain.com/)
@@ -20,9 +22,9 @@
 
 ---
 
-> 🤖 **你的知识库只会关键词搬运？ragent 让企业知识真正被理解**
+> 🤖 **你的知识库只会关键词搬运？Cognivault 让企业知识真正被理解**
 >
-> 💡 **核心差异**：传统 RAG 匹配即结束，ragent 从意图理解到混合检索、从记忆延续到工具增强，完成完整认知闭环。
+> 💡 **核心差异**：传统 RAG 匹配即结束，Cognivault 从意图理解到混合检索、从记忆延续到工具增强，完成完整认知闭环。
 
 ---
 
@@ -120,7 +122,7 @@ graph TD
 
 ### 1. 认知意图路由（Intent Router）
 
-传统 RAG 一上来就检索，ragent 先理解用户到底要什么：
+传统 RAG 一上来就检索，Cognivault 先理解用户到底要什么：
 
 - **指代消解**："那篇文章的价格是多少" → 自动关联上文提到的商品
 - **子查询拆分**："对比 A 和 B 的优缺点" → 拆分为独立子查询并行检索
@@ -636,8 +638,8 @@ docker run -d \
 
 <div align="center">
 
-**[⬆ 回到顶部](#ragent)**
+**[⬆ 回到顶部](#cognivault)**
 
-Made with ❤️ by the ragent team
+Made with ❤️ for practical Agent engineering
 
 </div>

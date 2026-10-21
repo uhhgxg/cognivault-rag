@@ -39,10 +39,10 @@ def _snapshot_results(
 ) -> List[Dict[str, Any]]:
     """将检索结果转换为可序列化快照，供 trace 记录和调试使用。
 
-    Args:
+    参数：
         results: RetrievalResult 对象列表。
 
-    Returns:
+    返回：
         包含 chunk_id、score、text、source 的字典列表。
     """
     if not results:
@@ -62,7 +62,7 @@ def _snapshot_results(
 class HybridSearchConfig:
     """HybridSearch 的运行配置。
     
-    Attributes:
+    属性：
         dense_top_k: 稠密检索阶段返回的结果数量上限。
         sparse_top_k: 稀疏检索阶段返回的结果数量上限。
         fusion_top_k: 融合之后最终保留的结果数量上限。
@@ -84,7 +84,7 @@ class HybridSearchConfig:
 class HybridSearchResult:
     """混合检索的完整返回结果。
     
-    Attributes:
+    属性：
         results: 最终排序后的结果列表。
         dense_results: 稠密检索的原始结果，便于排查问题。
         sparse_results: 稀疏检索的原始结果，便于排查问题。
@@ -117,7 +117,7 @@ class HybridSearch:
     - 可观测：支持 TraceContext，便于定位慢点和失败点。
     - 配置驱动：参数尽量从 settings 读取，减少散落常量。
     
-    Example:
+    示例：
         >>> # 初始化各个组件
         >>> query_processor = QueryProcessor()
         >>> dense_retriever = DenseRetriever(settings, embedding_client, vector_store)
@@ -148,7 +148,7 @@ class HybridSearch:
     ) -> None:
         """初始化混合搜索引擎及其依赖组件。
         
-        Args:
+        参数：
             settings: 用于提取检索配置的应用设置对象。
             query_processor: 用于查询预处理的 QueryProcessor。
             dense_retriever: 用于语义检索的 DenseRetriever。
@@ -156,7 +156,7 @@ class HybridSearch:
             fusion: 用于融合多路结果的 RRFFusion。
             config: 可选的 HybridSearchConfig；未提供时会尝试从 settings 提取。
         
-        Note:
+        说明：
             至少需要提供 dense_retriever 或 sparse_retriever 其中之一，
             搜索才能真正工作；如果某一路不可用或发生异常，会尽量降级返回。
         """
@@ -177,10 +177,10 @@ class HybridSearch:
     def _extract_config(self, settings: Optional[Settings]) -> HybridSearchConfig:
         """从 Settings 中提取 HybridSearchConfig。
         
-        Args:
+        参数：
             settings: 应用设置对象。
             
-        Returns:
+        返回：
             从 settings 读取或回退到默认值的 HybridSearchConfig。
         """
         if settings is None:
@@ -210,22 +210,22 @@ class HybridSearch:
     ) -> List[RetrievalResult] | HybridSearchResult:
         """执行混合检索，组合稠密检索和稀疏检索的结果。
         
-        Args:
+        参数：
             query: 搜索查询字符串。
             top_k: 最多返回的结果数量；如果为 None，则使用 config.fusion_top_k。
             filters: 可选的元数据过滤条件，例如 {"collection": "docs"}。
             trace: 可选的 TraceContext，用于可观测性记录。
             return_details: 为 True 时返回带调试信息的 HybridSearchResult。
         
-        Returns:
+        返回：
             return_details=False 时返回按相关度排序的 RetrievalResult 列表。
             return_details=True 时返回包含完整调试信息的 HybridSearchResult。
         
-        Raises:
+        抛出：
             ValueError: 当 query 为空或只有空白字符时抛出。
             RuntimeError: 当两条检索路径都失败或都不可用时抛出。
         
-        Example:
+        示例：
             >>> results = hybrid.search("Azure configuration", top_k=5)
             >>> for r in results:
             ...     print(f"[{r.score:.4f}] {r.chunk_id}: {r.text[:50]}...")
@@ -319,10 +319,10 @@ class HybridSearch:
     def _process_query(self, query: str) -> ProcessedQuery:
         """使用 QueryProcessor 处理原始查询。
         
-        Args:
+        参数：
             query: 原始查询字符串。
             
-        Returns:
+        返回：
             包含关键词和过滤条件的 ProcessedQuery。
         """
         if self.query_processor is None:
@@ -347,11 +347,11 @@ class HybridSearch:
 
         显式 filters 的优先级更高，原因是调用方通常比自动解析更明确。
         
-        Args:
+        参数：
             query_filters: QueryProcessor 从 query 中提取的过滤条件。
             explicit_filters: 调用 search() 时显式传入的过滤条件。
             
-        Returns:
+        返回：
             合并后的过滤条件字典。
         """
         merged = query_filters.copy() if query_filters else {}
@@ -374,12 +374,12 @@ class HybridSearch:
 
         如果配置允许且两路都需要执行，则优先并行；否则退回到顺序执行。
         
-        Args:
+        参数：
             processed_query: 已预处理过、包含关键词的查询对象。
             filters: 要应用的合并后过滤条件。
             trace: 可选的 TraceContext。
             
-        Returns:
+        返回：
             返回 (dense_results, sparse_results, dense_error, sparse_error)。
         """
         dense_results: Optional[List[RetrievalResult]] = None
@@ -437,12 +437,12 @@ class HybridSearch:
     ]:
         """使用 ThreadPoolExecutor 并行执行稠密检索与稀疏检索。
         
-        Args:
+        参数：
             processed_query: 已预处理的查询对象。
             filters: 要应用的过滤条件。
             trace: 可选的 TraceContext。
             
-        Returns:
+        返回：
             返回 (dense_results, sparse_results, dense_error, sparse_error)。
         """
         dense_results: Optional[List[RetrievalResult]] = None
@@ -498,12 +498,12 @@ class HybridSearch:
     ) -> Tuple[Optional[List[RetrievalResult]], Optional[str]]:
         """执行稠密检索，并统一处理异常和 trace 记录。
         
-        Args:
+        参数：
             query: 原始查询字符串。
             filters: 要应用的过滤条件。
             trace: 可选的 TraceContext。
             
-        Returns:
+        返回：
             返回 (results, error)。成功时 error 为 None。
         """
         if self.dense_retriever is None:
@@ -546,12 +546,12 @@ class HybridSearch:
     ) -> Tuple[Optional[List[RetrievalResult]], Optional[str]]:
         """执行稀疏检索，并统一处理异常和 trace 记录。
         
-        Args:
+        参数：
             keywords: QueryProcessor 产出的关键词列表。
             filters: 要应用的过滤条件。
             trace: 可选的 TraceContext。
             
-        Returns:
+        返回：
             返回 (results, error)。成功时 error 为 None。
         """
         if self.sparse_retriever is None:
@@ -596,13 +596,13 @@ class HybridSearch:
     ) -> List[RetrievalResult]:
         """使用 RRF 融合稠密检索与稀疏检索结果。
         
-        Args:
+        参数：
             dense_results: 稠密检索结果。
             sparse_results: 稀疏检索结果。
             top_k: 融合后需要返回的结果数量上限。
             trace: 可选的 TraceContext。
             
-        Returns:
+        返回：
             融合并重新排序后的 RetrievalResult 列表。
         """
         if self.fusion is None:
@@ -650,12 +650,12 @@ class HybridSearch:
     ) -> List[RetrievalResult]:
         """没有 fusion 组件时的简单双路交替回退方案。
         
-        Args:
+        参数：
             dense_results: 稠密检索结果。
             sparse_results: 稀疏检索结果。
             top_k: 最多返回的结果数量。
             
-        Returns:
+        返回：
             按 chunk_id 去重后的交替合并结果。
         """
         seen_ids = set()
@@ -693,11 +693,11 @@ class HybridSearch:
         这是一个备用过滤机制，主要用于底层存储对过滤语法支持不完整
         或查询层未能完全下推过滤条件的情况。
         
-        Args:
+        参数：
             results: 待过滤的结果列表。
             filters: 要应用的过滤条件。
             
-        Returns:
+        返回：
             过滤后的结果列表。
         """
         if not filters:
@@ -717,11 +717,11 @@ class HybridSearch:
     ) -> bool:
         """检查单条结果的 metadata 是否满足全部过滤条件。
         
-        Args:
+        参数：
             metadata: 结果携带的元数据。
             filters: 过滤条件。
             
-        Returns:
+        返回：
             如果全部条件都匹配则返回 True，否则返回 False。
         """
         for key, value in filters.items():
@@ -768,17 +768,17 @@ def create_hybrid_search(
     这个方法主要用于简化调用方的初始化逻辑。如果没有显式传入 fusion，
     就会根据 settings 中的配置创建默认的 RRFFusion。
     
-    Args:
+    参数：
         settings: 应用设置对象。
         query_processor: QueryProcessor 实例。
         dense_retriever: DenseRetriever 实例。
         sparse_retriever: SparseRetriever 实例。
         fusion: RRFFusion 实例；如果为 None，则创建默认实例。
         
-    Returns:
+    返回：
         已完成配置的 HybridSearch 实例。
     
-    Example:
+    示例：
         >>> hybrid = create_hybrid_search(
         ...     settings=settings,
         ...     query_processor=QueryProcessor(),

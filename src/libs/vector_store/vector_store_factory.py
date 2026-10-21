@@ -1,8 +1,7 @@
-"""Factory for creating VectorStore provider instances.
+"""创建向量存储（VectorStore）提供者实例的工厂。
 
-This module implements the Factory Pattern to instantiate the appropriate
-VectorStore provider based on configuration, enabling configuration-driven selection
-of different backends without code changes.
+本模块实现了工厂模式，根据配置来创建对应的向量存储实现，
+这样就能通过改配置来切换不同的后端，而不用改代码。
 """
 
 from __future__ import annotations
@@ -16,34 +15,32 @@ if TYPE_CHECKING:
 
 
 class VectorStoreFactory:
-    """Factory for creating VectorStore provider instances.
-    
-    This factory reads the provider configuration from settings and instantiates
-    the corresponding VectorStore implementation. Supported providers will be added
-    in subsequent tasks (B7.6 and beyond).
-    
-    Design Principles Applied:
-    - Factory Pattern: Centralizes object creation logic.
-    - Config-Driven: Provider selection based on settings.yaml.
-    - Fail-Fast: Raises clear errors for unknown providers.
+    """创建向量存储提供者实例的工厂。
+
+    本工厂从 settings 读取提供者配置，然后创建对应的向量存储实现。
+    支持的提供者会在后续任务（B7.6 及之后）中陆续添加。
+
+    应用的设计原则：
+    - 工厂模式：把对象创建的逻辑集中在一处管理。
+    - 配置驱动：根据 settings.yaml 来选择提供者。
+    - 快速失败：遇到未知的提供者时，直接抛出清晰的错误。
     """
-    
-    # Registry of supported providers (to be populated in B7.x tasks)
+
+    # 已支持的提供者注册表（在 B7.x 任务中填充）
     _PROVIDERS: dict[str, type[BaseVectorStore]] = {}
-    
+
     @classmethod
     def register_provider(cls, name: str, provider_class: type[BaseVectorStore]) -> None:
-        """Register a new VectorStore provider implementation.
-        
-        This method allows provider implementations to register themselves
-        with the factory, supporting extensibility.
-        
-        Args:
-            name: The provider identifier (e.g., 'chroma', 'qdrant', 'milvus').
-            provider_class: The BaseVectorStore subclass implementing the provider.
-        
-        Raises:
-            ValueError: If provider_class doesn't inherit from BaseVectorStore.
+        """注册一个新的向量存储提供者实现。
+
+        本方法允许提供者实现把自己注册到工厂中，从而支持扩展。
+
+        参数：
+            name: 提供者的标识名（例如 'chroma'、'qdrant'、'milvus'）。
+            provider_class: 实现该提供者的 BaseVectorStore 子类。
+
+        抛出：
+            ValueError: 如果 provider_class 不是 BaseVectorStore 的子类。
         """
         if not issubclass(provider_class, BaseVectorStore):
             raise ValueError(
@@ -53,25 +50,25 @@ class VectorStoreFactory:
     
     @classmethod
     def create(cls, settings: Settings, **override_kwargs: Any) -> BaseVectorStore:
-        """Create a VectorStore instance based on configuration.
-        
-        Args:
-            settings: The application settings containing VectorStore configuration.
-            **override_kwargs: Optional parameters to override config values.
-        
-        Returns:
-            An instance of the configured VectorStore provider.
-        
-        Raises:
-            ValueError: If the configured provider is not supported.
-            AttributeError: If required configuration fields are missing.
-        
-        Example:
+        """根据配置创建一个向量存储实例。
+
+        参数：
+            settings: 应用配置，里面包含向量存储相关配置。
+            **override_kwargs: 可选参数，用来覆盖配置里的默认值。
+
+        返回：
+            配置好的向量存储提供者实例。
+
+        抛出：
+            ValueError: 如果配置的提供者不支持。
+            AttributeError: 如果缺少必要的配置字段。
+
+        示例：
             >>> settings = Settings.load('config/settings.yaml')
             >>> vector_store = VectorStoreFactory.create(settings)
             >>> vector_store.upsert([{'id': 'doc1', 'vector': [0.1, 0.2]}])
         """
-        # Extract provider name from settings
+        # 从 settings 中取出提供者名字
         try:
             provider_name = settings.vector_store.provider.lower()
         except AttributeError as e:
@@ -79,10 +76,10 @@ class VectorStoreFactory:
                 "Missing required configuration: settings.vector_store.provider. "
                 "Please ensure 'vector_store.provider' is specified in settings.yaml"
             ) from e
-        
-        # Look up provider class in registry
+
+        # 在注册表里查找提供者类
         provider_class = cls._PROVIDERS.get(provider_name)
-        
+
         if provider_class is None:
             available = ", ".join(sorted(cls._PROVIDERS.keys())) if cls._PROVIDERS else "none"
             raise ValueError(
@@ -90,9 +87,9 @@ class VectorStoreFactory:
                 f"Available providers: {available}. "
                 f"Provider implementations will be added in task B7.6 and beyond."
             )
-        
-        # Instantiate the provider
-        # Provider classes should accept settings and optional kwargs
+
+        # 实例化提供者
+        # 提供者类应当接受 settings 和可选的 kwargs
         try:
             return provider_class(settings=settings, **override_kwargs)
         except Exception as e:
@@ -102,12 +99,12 @@ class VectorStoreFactory:
     
     @classmethod
     def list_providers(cls) -> list[str]:
-        """List all registered provider names.
-        
-        Returns:
-            Sorted list of provider names.
-        
-        Example:
+        """列出所有已注册的提供者名字。
+
+        返回：
+            已排序的提供者名字列表。
+
+        示例：
             >>> VectorStoreFactory.list_providers()
             ['chroma', 'milvus', 'qdrant']
         """

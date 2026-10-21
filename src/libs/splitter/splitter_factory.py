@@ -1,8 +1,7 @@
-"""Factory for creating Splitter instances.
+"""创建切分器（Splitter）实例的工厂。
 
-This module implements the Factory Pattern to instantiate the appropriate
-Splitter provider based on configuration, enabling configuration-driven selection
-of different splitting strategies without code changes.
+本模块实现了工厂模式，根据配置来创建对应的切分器实现，
+这样就能通过改配置来切换不同的切分策略，而不用改代码。
 """
 
 from __future__ import annotations
@@ -16,44 +15,43 @@ if TYPE_CHECKING:
 
 
 def _register_builtin_providers() -> None:
-    """Register built-in splitter providers.
-    
-    This function is called automatically when the module is imported.
-    It registers all available splitter implementations with the factory.
+    """注册内置的切分器提供者。
+
+    本函数在模块被导入时会自动调用，
+    把所有可用的切分器实现注册到工厂中。
     """
-    # Import here to avoid circular imports and handle missing dependencies gracefully
+    # 在这里导入是为了避免循环导入，同时优雅地处理依赖缺失的情况
     try:
         from src.libs.splitter.recursive_splitter import RecursiveSplitter
         SplitterFactory.register_provider("recursive", RecursiveSplitter)
     except ImportError:
-        pass  # RecursiveSplitter not available (missing langchain dependency)
+        pass  # RecursiveSplitter 不可用（缺少 langchain 依赖）
 
 
 class SplitterFactory:
-    """Factory for creating Splitter provider instances.
-    
-    This factory reads the splitter configuration from settings and instantiates
-    the corresponding Splitter implementation. Supported providers will be added
-    in subsequent tasks (B7.5).
-    
-    Design Principles Applied:
-    - Factory Pattern: Centralizes object creation logic.
-    - Config-Driven: Provider selection based on settings.yaml.
-    - Fail-Fast: Raises clear errors for unknown providers.
+    """创建切分器提供者实例的工厂。
+
+    本工厂从配置（settings）中读取切分器配置，然后创建对应的切分器实现。
+    支持的提供者会在后续任务（B7.5）中陆续添加。
+
+    应用的设计原则：
+    - 工厂模式：把对象创建的逻辑集中在一处管理。
+    - 配置驱动：根据 settings.yaml 来选择提供者。
+    - 快速失败：遇到未知的提供者时，直接抛出清晰的错误。
     """
     
     _PROVIDERS: dict[str, type[BaseSplitter]] = {}
     
     @classmethod
     def register_provider(cls, name: str, provider_class: type[BaseSplitter]) -> None:
-        """Register a new Splitter provider implementation.
-        
-        Args:
-            name: The provider identifier (e.g., 'recursive', 'semantic', 'fixed').
-            provider_class: The BaseSplitter subclass implementing the provider.
-        
-        Raises:
-            ValueError: If provider_class doesn't inherit from BaseSplitter.
+        """注册一个新的切分器提供者实现。
+
+        参数：
+            name: 提供者的标识名（例如 'recursive'、'semantic'、'fixed'）。
+            provider_class: 实现该提供者的 BaseSplitter 子类。
+
+        抛出：
+            ValueError: 如果 provider_class 不是 BaseSplitter 的子类。
         """
         if not issubclass(provider_class, BaseSplitter):
             raise ValueError(
@@ -63,17 +61,17 @@ class SplitterFactory:
     
     @classmethod
     def create(cls, settings: Settings, **override_kwargs: Any) -> BaseSplitter:
-        """Create a Splitter instance based on configuration.
-        
-        Args:
-            settings: The application settings containing ingestion configuration.
-            **override_kwargs: Optional parameters to override config values.
-        
-        Returns:
-            An instance of the configured Splitter provider.
-        
-        Raises:
-            ValueError: If the configured provider is not supported or missing.
+        """根据配置创建一个切分器实例。
+
+        参数：
+            settings: 应用配置，里面包含文档摄入（ingestion）相关配置。
+            **override_kwargs: 可选参数，用来覆盖配置里的默认值。
+
+        返回：
+            配置好的切分器提供者实例。
+
+        抛出：
+            ValueError: 如果配置的提供者不支持或者缺失。
         """
         try:
             ingestion_settings = settings.ingestion
@@ -104,13 +102,13 @@ class SplitterFactory:
     
     @classmethod
     def list_providers(cls) -> list[str]:
-        """List all registered provider names.
-        
-        Returns:
-            Sorted list of available provider identifiers.
+        """列出所有已注册的提供者名字。
+
+        返回：
+            已排序的可用提供者标识列表。
         """
         return sorted(cls._PROVIDERS.keys())
 
 
-# Auto-register built-in providers when module is imported
+# 模块被导入时自动注册内置提供者
 _register_builtin_providers()

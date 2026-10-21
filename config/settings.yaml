@@ -1,9 +1,9 @@
-# Modular RAG MCP Server - Configuration
-# This is the main configuration file for the MCP Server.
-# Edit this file to configure LLM, Embedding, VectorStore, and other services.
+# Modular RAG MCP Server - 配置文件
+# 这是 MCP Server 的主配置文件。
+# 编辑本文件可以配置 LLM、Embedding、向量库和其他服务。
 
 # =============================================================================
-# LLM Configuration
+# LLM 配置（大语言模型）
 # =============================================================================
 llm:
   provider: "openai"
@@ -14,7 +14,7 @@ llm:
   max_tokens: 4096
 
 # =============================================================================
-# Embedding Configuration
+# Embedding 配置（向量编码模型）
 # =============================================================================
 embedding:
   provider: "openai"
@@ -22,11 +22,11 @@ embedding:
   base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
   # api_key 会从 OPENAI_API_KEY 环境变量自动读取
   dimensions: 1536
-  # OpenAI-specific settings (if provider is openai):
+  # OpenAI 专属设置（当 provider 为 openai 时可用）：
   # api_key: "YOUR_API_KEY_HERE"
 
 # =============================================================================
-# Vision LLM Configuration (for Image Captioning)
+# Vision LLM 配置（视觉大模型，用于图片描述）
 # =============================================================================
 vision_llm:
   enabled: true
@@ -34,78 +34,78 @@ vision_llm:
   model: "qwen3.5-omni-flash"  # 复用全模态模型做 OCR / 图片理解
   base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
   # api_key 会从 OPENAI_API_KEY 环境变量自动读取
-  # Ollama-specific settings (if provider is ollama):
+  # Ollama 专属设置（当 provider 为 ollama 时可用）：
   # base_url: "http://localhost:11434"
-  max_image_size: 2048  # Max dimension (width/height) for image compression
+  max_image_size: 2048  # 图片压缩后的最大边长（宽或高的最大值，单位像素）
 
 # =============================================================================
-# Vector Store Configuration
+# Vector Store 配置（向量数据库）
 # =============================================================================
 vector_store:
-  provider: "chroma"  # Options: chroma, qdrant, pinecone
+  provider: "chroma"  # 可选值：chroma, qdrant, pinecone
   persist_directory: "./data/db/chroma"
   collection_name: "knowledge_hub"
 
 # =============================================================================
-# Retrieval Configuration
+# Retrieval 配置（检索参数）
 # =============================================================================
 retrieval:
   dense_top_k: 20
   sparse_top_k: 20
   fusion_top_k: 10
-  rrf_k: 60  # RRF constant
+  rrf_k: 60  # RRF 融合常数
 
 # =============================================================================
-# Rerank Configuration
+# Rerank 配置（重排序）
 # =============================================================================
 rerank:
   enabled: true
-  provider: "dashscope"  # Options: none, cross_encoder, dashscope, llm
+  provider: "dashscope"  # 可选值：none, cross_encoder, dashscope, llm
   model: "qwen3-rerank"
   top_k: 5
 
 # =============================================================================
-# Evaluation Configuration
+# Evaluation 配置（评估体系）
 # =============================================================================
 evaluation:
   enabled: false
-  provider: "custom"  # Options: ragas, deepeval, custom
+  provider: "custom"  # 可选值：ragas, deepeval, custom
   metrics:
     - "hit_rate"
     - "mrr"
     - "faithfulness"
 
 # =============================================================================
-# Observability Configuration
+# Observability 配置（可观测性 / 日志追踪）
 # =============================================================================
 observability:
-  log_level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
+  log_level: "INFO"  # 可选值：DEBUG, INFO, WARNING, ERROR
   trace_enabled: true
   trace_file: "./logs/traces.jsonl"
   structured_logging: true
 
 # =============================================================================
-# Ingestion Configuration
+# Ingestion 配置（摄取流水线）
 # =============================================================================
 ingestion:
   chunk_size: 1000
   chunk_overlap: 200
-  splitter: "recursive"  # Options: recursive, semantic, fixed_length
+  splitter: "recursive"  # 可选值：recursive, semantic, fixed_length
   batch_size: 100
   max_workers: 3  # Transform 阶段 LLM 调用的最大并发数
-  
-  # Chunk Refiner Configuration (C5)
+
+  # Chunk Refiner 配置（C5 文本块精炼）
   chunk_refiner:
-    use_llm: true  # Set to true to enable LLM-based refinement (requires LLM config)
-    # When use_llm is false or LLM call fails, falls back to rule-based refinement
-  
-  # Metadata Enricher Configuration (C6)
+    use_llm: true  # 设为 true 启用基于 LLM 的精炼（需要配置 LLM）
+    # 当 use_llm 为 false 或 LLM 调用失败时，回退到基于规则的精炼
+
+  # Metadata Enricher 配置（C6 元数据增强）
   metadata_enricher:
-    use_llm: true  # Set to true to enable LLM-based enrichment (requires LLM config)
-    # When use_llm is false or LLM call fails, falls back to rule-based enrichment
+    use_llm: true  # 设为 true 启用基于 LLM 的增强（需要配置 LLM）
+    # 当 use_llm 为 false 或 LLM 调用失败时，回退到基于规则的增强
 
 # =============================================================================
-# MCP Client Configuration (External Tool Servers)
+# MCP Client 配置（外部工具服务器）
 # =============================================================================
 mcp_servers:
   # 简易 MCP Server（纯 Python 内置工具）
@@ -115,13 +115,13 @@ mcp_servers:
     args: ["scripts/simple_mcp_server.py", "--stdio"]
     timeout_seconds: 30
 
-  # Example: Tavily Web Search MCP Server
+  # 示例：Tavily 网页搜索 MCP Server
   # tavily:
   #   transport: sse
   #   url: "http://localhost:3000/sse"
   #   timeout_seconds: 30
-  
-  # Example: Filesystem MCP Server
+
+  # 示例：文件系统 MCP Server
   # filesystem:
   #   transport: stdio
   #   command: "npx"

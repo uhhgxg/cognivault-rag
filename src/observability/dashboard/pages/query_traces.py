@@ -1,10 +1,10 @@
-"""Query Traces page – browse query trace history with stage waterfall.
+"""Query Traces 页面 – 浏览查询 trace 历史，并展示各阶段耗时的瀑布图。
 
-Layout:
-1. Optional keyword search filter
-2. Trace list (reverse-chronological, filtered to trace_type=="query")
-3. Detail view: stage waterfall + Dense vs Sparse comparison + Rerank delta
-4. Per-trace Ragas evaluation button (LLM-as-Judge scoring)
+布局：
+1. 可选的关键词搜索过滤
+2. trace 列表（按时间倒序，过滤为 trace_type=="query"）
+3. 详情视图：阶段耗时瀑布图 + Dense 与 Sparse 对比 + Rerank 变化
+4. 每条 trace 的 Ragas 评估按钮（LLM 评分）
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def render() -> None:
-    """Render the Query Traces page."""
+    """渲染 Query Traces 页面。"""
     st.header("🔎 Query Traces")
 
     svc = TraceService()
@@ -30,7 +30,7 @@ def render() -> None:
         st.info("No query traces recorded yet. Run a query first!")
         return
 
-    # ── Keyword filter ─────────────────────────────────────────────
+    # ── 关键词过滤 ─────────────────────────────────────────────
     keyword = st.text_input(
         "Search by query keyword",
         value="",
@@ -56,7 +56,7 @@ def render() -> None:
         query_text = meta.get("query", "")
         source = meta.get("source", "unknown")
 
-        # ── Expander title: show query text ────────────────────
+        # ── 展开器标题：显示查询文本 ────────────────────
         query_preview = (
             query_text[:40] + "…" if len(query_text) > 40 else query_text
         ) if query_text else "—"
@@ -65,7 +65,7 @@ def render() -> None:
         )
 
         with st.expander(expander_title, expanded=(idx == 0)):
-            # ── 1. Query overview ──────────────────────────────
+            # ── 1. 查询概览 ──────────────────────────────
             st.markdown("#### 💬 Query")
             col_q, col_meta = st.columns([3, 1])
             with col_q:
@@ -78,7 +78,7 @@ def render() -> None:
 
             st.divider()
 
-            # ── 2. Overview metrics ────────────────────────────
+            # ── 2. 概览指标 ────────────────────────────
             timings = svc.get_stage_timings(trace)
             stages_by_name = {t["stage_name"]: t for t in timings}
 
@@ -104,7 +104,7 @@ def render() -> None:
             with rc5:
                 st.metric("Total Time", total_label)
 
-            # ── Diagnostic hints ───────────────────────────────
+            # ── 诊断提示 ───────────────────────────────
             _render_diagnostics(
                 stages_by_name, dense_d, sparse_d, fusion_d, rerank_d,
                 dense_count, sparse_count,
@@ -112,7 +112,7 @@ def render() -> None:
 
             st.divider()
 
-            # ── 3. Stage timing waterfall ──────────────────────
+            # ── 3. 阶段耗时瀑布图 ──────────────────────
             main_stage_names = ("query_processing", "dense_retrieval", "sparse_retrieval", "fusion", "rerank")
             main_timings = [t for t in timings if t["stage_name"] in main_stage_names]
             if main_timings:
@@ -129,7 +129,7 @@ def render() -> None:
 
             st.divider()
 
-            # ── 4. Per-stage detail tabs ───────────────────────
+            # ── 4. 各阶段详情标签页 ───────────────────────
             st.markdown("#### 🔍 Stage Details")
 
             tab_defs = []
@@ -167,7 +167,7 @@ def render() -> None:
             else:
                 st.info("No stage details available.")
 
-            # ── 5. Ragas Evaluate button ───────────────────────
+            # ── 5. Ragas 评估按钮 ───────────────────────
             _render_evaluate_button(trace, idx)
 
 
@@ -180,17 +180,17 @@ def _render_diagnostics(
     dense_count: int,
     sparse_count: int,
 ) -> None:
-    """Render diagnostic hints about missing or errored pipeline stages."""
+    """渲染关于缺失或出错流水线阶段的诊断提示。"""
     hints: list = []
 
-    # Dense errors
+    # Dense 检索的错误
     dense_err = dense_d.get("error", "")
     if dense_err:
         hints.append(("error", f"**Dense Retrieval failed:** {dense_err}"))
     elif dense_count == 0 and "dense_retrieval" in stages_by_name:
         hints.append(("warning", "Dense Retrieval returned **0 results**. Check if the collection has indexed data."))
 
-    # Sparse errors / empty
+    # Sparse 检索的错误 / 为空
     sparse_err = sparse_d.get("error", "")
     if sparse_err:
         hints.append(("error", f"**Sparse Retrieval failed:** {sparse_err}"))
@@ -201,7 +201,7 @@ def _render_diagnostics(
             "BM25 index may be empty or not yet built for this collection.",
         ))
 
-    # Fusion missing
+    # 缺少 Fusion 阶段
     if "fusion" not in stages_by_name:
         if dense_count > 0 and sparse_count > 0:
             hints.append(("info", "Fusion stage was not recorded even though both retrievers returned results."))
@@ -213,7 +213,7 @@ def _render_diagnostics(
                 "Fusion requires both Dense and Sparse results to merge.",
             ))
 
-    # Rerank missing
+    # 缺少 Rerank 阶段
     if "rerank" not in stages_by_name:
         if dense_count > 0 or sparse_count > 0:
             hints.append((
@@ -222,7 +222,7 @@ def _render_diagnostics(
                 "Enable `reranker` in settings.yaml to apply LLM-based reranking.",
             ))
 
-    # All results empty
+    # 所有结果都为空
     if dense_count == 0 and sparse_count == 0:
         hints.append((
             "warning",
@@ -230,7 +230,7 @@ def _render_diagnostics(
             "doesn't match any indexed content. Try ingesting data first.",
         ))
 
-    # Render hints
+    # 渲染提示
     for level, msg in hints:
         if level == "error":
             st.error(msg)
@@ -241,11 +241,11 @@ def _render_diagnostics(
 
 
 def _render_evaluate_button(trace: Dict[str, Any], idx: int) -> None:
-    """Render a Ragas evaluate button for a single query trace.
+    """为单条查询 trace 渲染一个 Ragas 评估按钮。
 
-    Re-runs retrieval for the stored query and evaluates with
-    RagasEvaluator (LLM-as-Judge).  Only works when query text
-    is available in trace metadata.
+    会针对存储的查询重新运行检索，并用
+    RagasEvaluator（LLM 评分）进行评估。仅当 trace 元数据中
+    可用查询文本时才有效。
     """
     meta = trace.get("metadata", {})
     query = meta.get("query", "")
@@ -259,7 +259,7 @@ def _render_evaluate_button(trace: Dict[str, Any], idx: int) -> None:
         "日志中仅包含 Query 和检索到的上下文，请在下方输入实际回答后再运行评估。"
     )
 
-    # Answer input box — user provides the actual generated answer
+    # 回答输入框 —— 用户提供实际生成的回答
     answer_key = f"eval_answer_{idx}"
     user_answer = st.text_area(
         "✏️ Generated Answer (回答)",
@@ -292,7 +292,7 @@ def _render_evaluate_button(trace: Dict[str, Any], idx: int) -> None:
                 "and context precision. Calls LLM — may take a few seconds."
             )
 
-    # Show previous result from session state
+    # 显示 session state 中保存的上次结果
     result_key = f"eval_result_{idx}"
     if result_key in st.session_state and not clicked:
         _display_eval_metrics(st.session_state[result_key])
@@ -309,9 +309,9 @@ def _evaluate_single_trace(
     meta: Dict[str, Any],
     user_answer: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Re-run retrieval and evaluate a single query with Ragas.
+    """重新运行检索并用 Ragas 评估单条查询。
 
-    Returns dict with 'metrics' (score dict) or 'error' (str).
+    返回的字典含 'metrics'（分数字典）或 'error'（字符串）。
     """
     try:
         from dataclasses import replace as dc_replace
@@ -321,7 +321,7 @@ def _evaluate_single_trace(
 
         settings = load_settings()
 
-        # Override evaluation settings to force Ragas (frozen dataclass, use replace)
+        # 覆盖评估配置以强制使用 Ragas（frozen dataclass，用 replace）
         ragas_eval = EvaluationSettings(
             enabled=True,
             provider="ragas",
@@ -330,7 +330,7 @@ def _evaluate_single_trace(
         settings = dc_replace(settings, evaluation=ragas_eval)
         evaluator = EvaluatorFactory.create(settings)
 
-        # Re-run retrieval
+        # 重新运行检索
         collection = meta.get("collection", "default")
         top_k = meta.get("top_k", 10)
         chunks = _retrieve_chunks(settings, query, top_k, collection)
@@ -338,8 +338,8 @@ def _evaluate_single_trace(
         if not chunks:
             return {"error": "No chunks retrieved — is data indexed?"}
 
-        # Use user-provided answer; fall back to chunk concatenation only
-        # as a last resort (produces less meaningful RAGAS scores).
+        # 使用用户提供的回答；仅作为最后兜底时才拼接 chunk 文本
+        # （这样得到的 RAGAS 分数意义不大）。
         if user_answer:
             answer = user_answer
         else:
@@ -356,7 +356,7 @@ def _evaluate_single_trace(
             if len(answer) > _MAX_ANSWER_CHARS:
                 answer = answer[:_MAX_ANSWER_CHARS]
 
-        # Evaluate
+        # 评估
         metrics = evaluator.evaluate(
             query=query,
             retrieved_chunks=chunks,
@@ -377,7 +377,7 @@ def _retrieve_chunks(
     top_k: int,
     collection: str,
 ) -> list:
-    """Re-run HybridSearch + Rerank to retrieve chunks for evaluation."""
+    """重新运行 HybridSearch + Rerank，检索用于评估的 chunk。"""
     try:
         from src.core.query_engine.hybrid_search import create_hybrid_search
         from src.core.query_engine.query_processor import QueryProcessor
@@ -413,14 +413,14 @@ def _retrieve_chunks(
             sparse_retriever=sparse_retriever,
         )
 
-        # Retrieve more candidates if rerank is enabled
+        # 如果启用了重排，则检索更多候选结果
         reranker = create_core_reranker(settings=settings)
         initial_top_k = top_k * 2 if reranker.is_enabled else top_k
 
         results = hybrid_search.search(query=query, top_k=initial_top_k)
         results = results if isinstance(results, list) else results.results
 
-        # Apply reranking if enabled
+        # 如果启用了重排，则应用重排
         if reranker.is_enabled and results:
             rerank_result = reranker.rerank(query=query, results=results, top_k=top_k)
             results = rerank_result.results
@@ -432,7 +432,7 @@ def _retrieve_chunks(
 
 
 def _display_eval_metrics(result: Dict[str, Any]) -> None:
-    """Display evaluation result (metrics or error)."""
+    """显示评估结果（指标或错误）。"""
     if "error" in result:
         st.error(f"❌ Evaluation failed: {result['error']}")
         return
@@ -456,7 +456,7 @@ def _extract_pipeline_chunks(
     timings: List[Dict[str, Any]],
     meta: Dict[str, Any],
 ) -> Dict[str, List[Dict[str, Any]]]:
-    """Extract chunk lists from each pipeline stage."""
+    """从每个流水线阶段中提取 chunk 列表。"""
     result: Dict[str, List[Dict[str, Any]]] = {}
     for stage in timings:
         name = stage.get("stage_name", "")
@@ -471,11 +471,11 @@ def _extract_pipeline_chunks(
 
 
 # ═══════════════════════════════════════════════════════════════
-# Per-stage renderers
+# 各阶段的渲染函数
 # ═══════════════════════════════════════════════════════════════
 
 def _render_query_processing_stage(data: Dict[str, Any]) -> None:
-    """Render Query Processing stage: original query → keywords."""
+    """渲染 Query Processing 阶段：原始查询 → 关键词。"""
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("**Original Query**")
@@ -493,7 +493,7 @@ def _render_query_processing_stage(data: Dict[str, Any]) -> None:
 
 
 def _render_retrieval_stage(data: Dict[str, Any], label: str, *, trace_idx: int = 0) -> None:
-    """Render Dense or Sparse retrieval stage: method, counts, chunk list."""
+    """渲染 Dense 或 Sparse 检索阶段：方法、数量、chunk 列表。"""
     c1, c2, c3 = st.columns(3)
     with c1:
         st.metric("Method", data.get("method", "—"))
@@ -514,7 +514,7 @@ def _render_retrieval_stage(data: Dict[str, Any], label: str, *, trace_idx: int 
 
 
 def _render_fusion_stage(data: Dict[str, Any], *, trace_idx: int = 0) -> None:
-    """Render Fusion (RRF) stage: input lists, fused result count, chunk list."""
+    """渲染 Fusion（RRF）阶段：输入列表、融合后的结果数量、chunk 列表。"""
     c1, c2, c3 = st.columns(3)
     with c1:
         st.metric("Method", data.get("method", "rrf"))
@@ -533,7 +533,7 @@ def _render_fusion_stage(data: Dict[str, Any], *, trace_idx: int = 0) -> None:
 
 
 def _render_rerank_stage(data: Dict[str, Any], *, trace_idx: int = 0) -> None:
-    """Render Rerank stage: method, input/output counts, reranked chunk list."""
+    """渲染 Rerank 阶段：方法、输入/输出数量、重排后的 chunk 列表。"""
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.metric("Method", data.get("method", "—"))
@@ -552,7 +552,7 @@ def _render_rerank_stage(data: Dict[str, Any], *, trace_idx: int = 0) -> None:
 
 
 def _render_chunk_list(chunks: List[Dict[str, Any]], prefix: str = "chunk") -> None:
-    """Render a list of chunk dicts as a compact, readable table with expandable text."""
+    """把 chunk 字典列表渲染成紧凑、可读的表格，文本可展开。"""
     for ci, chunk in enumerate(chunks):
         score = chunk.get("score", 0)
         text = chunk.get("text", "")
@@ -560,7 +560,7 @@ def _render_chunk_list(chunks: List[Dict[str, Any]], prefix: str = "chunk") -> N
         source = chunk.get("source", "")
         title = chunk.get("title", "")
 
-        # Colour-coded score indicator
+        # 按分数着色的指示器
         if score >= 0.8:
             score_bar = "🟢"
         elif score >= 0.5:
@@ -579,7 +579,7 @@ def _render_chunk_list(chunks: List[Dict[str, Any]], prefix: str = "chunk") -> N
             with cols[1]:
                 if source:
                     st.caption(f"Source: `{source}`")
-            # Show chunk text (scrollable)
+            # 显示 chunk 文本（可滚动）
             if text:
                 st.text_area(
                     f"{prefix}_{ci}",
@@ -593,7 +593,7 @@ def _render_chunk_list(chunks: List[Dict[str, Any]], prefix: str = "chunk") -> N
 
 
 def _find_stage(timings, name):
-    """Find a stage dict by name, or None."""
+    """按名称查找一个 stage 字典，找不到则返回 None。"""
     for t in timings:
         if t["stage_name"] == name:
             return t

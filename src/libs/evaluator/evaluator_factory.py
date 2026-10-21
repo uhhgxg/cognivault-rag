@@ -1,7 +1,6 @@
-"""Factory for creating Evaluator provider instances.
+"""创建评估器（Evaluator）提供者实例的工厂。
 
-This module implements the Factory Pattern to instantiate the appropriate
-Evaluator provider based on configuration.
+本模块实现了工厂模式，根据配置来创建对应的评估器实现。
 """
 
 from __future__ import annotations
@@ -16,32 +15,32 @@ if TYPE_CHECKING:
 
 
 def _get_ragas_evaluator() -> type[BaseEvaluator]:
-    """Lazy import RagasEvaluator to avoid hard dependency on ragas."""
+    """延迟导入 RagasEvaluator，避免对 ragas 产生硬依赖。"""
     from src.observability.evaluation.ragas_evaluator import RagasEvaluator
     return RagasEvaluator
 
 
 def _get_composite_evaluator() -> type[BaseEvaluator]:
-    """Lazy import CompositeEvaluator."""
+    """延迟导入 CompositeEvaluator。"""
     from src.observability.evaluation.composite_evaluator import CompositeEvaluator
     return CompositeEvaluator
 
 
 class EvaluatorFactory:
-    """Factory for creating Evaluator provider instances.
+    """创建评估器提供者实例的工厂。
 
-    Design Principles Applied:
-    - Factory Pattern: Centralizes object creation logic.
-    - Config-Driven: Provider selection based on settings.yaml.
-    - Fallback: Disabled evaluation returns NoneEvaluator.
-    - Fail-Fast: Raises clear errors for unknown providers.
+    应用的设计原则：
+    - 工厂模式：把对象创建的逻辑集中在一处管理。
+    - 配置驱动：根据 settings.yaml 来选择提供者。
+    - 兜底：禁用评估时返回 NoneEvaluator。
+    - 快速失败：遇到未知的提供者时，直接抛出清晰的错误。
     """
 
     _PROVIDERS: dict[str, type[BaseEvaluator]] = {
         "custom": CustomEvaluator,
     }
 
-    # Lazy-loaded providers (import on demand to avoid hard dependencies)
+    # 延迟加载的提供者（按需导入，避免硬依赖）
     _LAZY_PROVIDERS: dict[str, Any] = {
         "ragas": _get_ragas_evaluator,
         "composite": _get_composite_evaluator,
@@ -49,14 +48,14 @@ class EvaluatorFactory:
 
     @classmethod
     def register_provider(cls, name: str, provider_class: type[BaseEvaluator]) -> None:
-        """Register a new Evaluator provider implementation.
+        """注册一个新的评估器提供者实现。
 
-        Args:
-            name: The provider identifier (e.g., 'ragas', 'custom').
-            provider_class: The BaseEvaluator subclass implementing the provider.
+        参数：
+            name: 提供者的标识名（例如 'ragas'、'custom'）。
+            provider_class: 实现该提供者的 BaseEvaluator 子类。
 
-        Raises:
-            ValueError: If provider_class doesn't inherit from BaseEvaluator.
+        抛出：
+            ValueError: 如果 provider_class 不是 BaseEvaluator 的子类。
         """
         if not issubclass(provider_class, BaseEvaluator):
             raise ValueError(
@@ -66,22 +65,22 @@ class EvaluatorFactory:
 
     @classmethod
     def create(cls, settings: Settings, **override_kwargs: Any) -> BaseEvaluator:
-        """Create an Evaluator instance based on configuration.
+        """根据配置创建一个评估器实例。
 
-        Args:
-            settings: The application settings containing evaluation config.
-            **override_kwargs: Optional parameters to override config values.
+        参数：
+            settings: 应用配置，里面包含评估相关配置。
+            **override_kwargs: 可选参数，用来覆盖配置里的默认值。
 
-        Returns:
-            An instance of the configured Evaluator provider.
+        返回：
+            配置好的评估器提供者实例。
 
-        Raises:
-            ValueError: If the configured provider is not supported or missing.
-            RuntimeError: If provider initialization fails.
+        抛出：
+            ValueError: 如果配置的提供者不支持或缺失。
+            RuntimeError: 如果提供者初始化失败。
         """
         try:
-            # Accept either full Settings (with .evaluation attr) or
-            # a bare EvaluationSettings object directly.
+            # 既接受完整的 Settings（带 .evaluation 属性），
+            # 也接受单独的 EvaluationSettings 对象
             if hasattr(settings, "evaluation"):
                 evaluation_settings = settings.evaluation
             elif hasattr(settings, "provider") and hasattr(settings, "enabled"):
@@ -105,7 +104,7 @@ class EvaluatorFactory:
         if provider_class is None and provider_name in cls._LAZY_PROVIDERS:
             try:
                 provider_class = cls._LAZY_PROVIDERS[provider_name]()
-                cls._PROVIDERS[provider_name] = provider_class  # cache for next call
+                cls._PROVIDERS[provider_name] = provider_class  # 缓存起来，下次直接用
             except ImportError as e:
                 raise ValueError(
                     f"Provider '{provider_name}' requires additional dependencies: {e}"
@@ -127,9 +126,9 @@ class EvaluatorFactory:
 
     @classmethod
     def list_providers(cls) -> list[str]:
-        """List all registered provider names.
+        """列出所有已注册的提供者名字。
 
-        Returns:
-            Sorted list of available provider identifiers.
+        返回：
+            已排序的可用提供者标识列表。
         """
         return sorted(cls._PROVIDERS.keys())

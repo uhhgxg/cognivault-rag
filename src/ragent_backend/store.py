@@ -129,7 +129,7 @@ class ConversationArchiveStore:
                        WHERE conversation_id = $1 AND turn_id = $2""",
                     conversation_id, turn_id,
                 )
-                # asyncpg execute returns a status string like "DELETE 3"
+                # asyncpg 的 execute 返回类似 "DELETE 3" 的状态字符串
                 return int(result.split()[-1]) if result.split()[-1].isdigit() else 0
 
             result = await conn.execute(

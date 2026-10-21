@@ -1,10 +1,10 @@
 """
-Loader Module.
+Loader（文档加载器）模块。
 
-This package contains document loader components:
-- Base loader class
-- PDF loader
-- File integrity checker
+本包包含文档加载器相关组件：
+- 加载器基类
+- PDF 加载器
+- 文件完整性检查器
 """
 
 from src.libs.loader.base_loader import BaseLoader

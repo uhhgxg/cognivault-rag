@@ -40,12 +40,12 @@ class Document:
             raise ValueError("Document metadata must contain 'source_path'")
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """转换为字典，用于序列化。"""
         return asdict(self)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Document":
-        """Create Document from dictionary."""
+        """从字典创建 Document 实例。"""
         return cls(**data)
 
 
@@ -71,12 +71,12 @@ class Chunk:
             raise ValueError("Chunk metadata must contain 'source_path'")
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """转换为字典，用于序列化。"""
         return asdict(self)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Chunk":
-        """Create Chunk from dictionary."""
+        """从字典创建 Chunk 实例。"""
         return cls(**data)
 
 
@@ -103,12 +103,12 @@ class ChunkRecord:
             raise ValueError("ChunkRecord metadata must contain 'source_path'")
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """转换为字典，用于序列化。"""
         return asdict(self)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ChunkRecord":
-        """Create ChunkRecord from dictionary."""
+        """从字典创建 ChunkRecord 实例。"""
         return cls(**data)
     
     @classmethod
@@ -124,7 +124,7 @@ class ChunkRecord:
         )
 
 
-# Type aliases for convenience
+# 类型别名，方便使用
 Metadata = Dict[str, Any]
 Vector = List[float]
 SparseVector = Dict[str, float]
@@ -144,12 +144,12 @@ class ProcessedQuery:
     expanded_terms: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """转换为字典，用于序列化。"""
         return asdict(self)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ProcessedQuery":
-        """Create ProcessedQuery from dictionary."""
+        """从字典创建 ProcessedQuery 实例。"""
         return cls(**data)
 
 
@@ -174,10 +174,10 @@ class RetrievalResult:
             raise ValueError(f"score must be numeric, got {type(self.score).__name__}")
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """转换为字典，用于序列化。"""
         return asdict(self)
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "RetrievalResult":
-        """Create RetrievalResult from dictionary."""
+        """从字典创建 RetrievalResult 实例。"""
         return cls(**data)

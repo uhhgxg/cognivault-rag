@@ -1,6 +1,6 @@
-"""TraceService – read and parse traces from logs/traces.jsonl.
+"""TraceService – 读取并解析 logs/traces.jsonl 中的 trace。
 
-Provides a typed, filterable interface over the raw JSONL trace log.
+在原始的 JSONL trace 日志之上提供带类型、可过滤的接口。
 """
 
 from __future__ import annotations
@@ -14,23 +14,23 @@ from src.core.settings import resolve_path
 
 logger = logging.getLogger(__name__)
 
-# Default path to the traces file (absolute, CWD-independent)
+# 默认的 traces 文件路径（绝对路径，不依赖当前工作目录）
 DEFAULT_TRACES_PATH = resolve_path("logs/traces.jsonl")
 
 
 class TraceService:
-    """Read-only service for querying recorded traces.
+    """用于查询已记录 trace 的只读服务。
 
     Args:
-        traces_path: Path to the JSONL file.  Defaults to
-            ``logs/traces.jsonl``.
+        traces_path: JSONL 文件的路径。默认为
+            ``logs/traces.jsonl``。
     """
 
     def __init__(self, traces_path: Optional[str | Path] = None) -> None:
         self.traces_path = Path(traces_path) if traces_path else DEFAULT_TRACES_PATH
 
     # ------------------------------------------------------------------
-    # Public API
+    # 公共 API
     # ------------------------------------------------------------------
 
     def list_traces(
@@ -38,31 +38,31 @@ class TraceService:
         trace_type: Optional[str] = None,
         limit: int = 100,
     ) -> List[Dict[str, Any]]:
-        """Return traces in reverse-chronological order.
+        """按时间倒序返回 trace。
 
         Args:
-            trace_type: Filter by ``trace_type`` field (e.g.
-                ``"ingestion"`` or ``"query"``).  ``None`` = all.
-            limit: Maximum number of traces to return.
+            trace_type: 按 ``trace_type`` 字段过滤（例如
+                ``"ingestion"`` 或 ``"query"``）。``None`` 表示全部。
+            limit: 最多返回的 trace 数量。
 
         Returns:
-            List of trace dicts (newest first).
+            trace 字典列表（最新的在前）。
         """
         traces = self._load_all()
 
         if trace_type:
             traces = [t for t in traces if t.get("trace_type") == trace_type]
 
-        # Newest first
+        # 最新的排在前面
         traces.sort(key=lambda t: t.get("started_at", ""), reverse=True)
 
         return traces[:limit]
 
     def get_trace(self, trace_id: str) -> Optional[Dict[str, Any]]:
-        """Retrieve a single trace by its ``trace_id``.
+        """根据 ``trace_id`` 获取单条 trace。
 
         Returns:
-            Trace dict, or ``None`` if not found.
+            trace 字典；如果找不到则返回 ``None``。
         """
         for t in self._load_all():
             if t.get("trace_id") == trace_id:
@@ -70,17 +70,17 @@ class TraceService:
         return None
 
     def get_stage_timings(self, trace: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Extract stage timings from a trace.
+        """从 trace 中提取各阶段耗时。
 
         Returns:
-            List of dicts with keys: stage_name, elapsed_ms, data.
-            Ordered by appearance.
+            字典列表，包含键：stage_name、elapsed_ms、data。
+            按出现顺序排列。
         """
         stages = trace.get("stages", [])
         timings: List[Dict[str, Any]] = []
         for s in stages:
-            # The raw stage dict has: stage, timestamp, data (dict), elapsed_ms
-            # Extract the inner 'data' dict directly rather than flattening
+            # 原始 stage 字典包含：stage、timestamp、data (dict)、elapsed_ms
+            # 直接取出内部的 'data' 字典，而不是展平
             stage_data = s.get("data", {})
             if not isinstance(stage_data, dict):
                 stage_data = {}
@@ -94,13 +94,13 @@ class TraceService:
         return timings
 
     # ------------------------------------------------------------------
-    # Internal helpers
+    # 内部辅助方法
     # ------------------------------------------------------------------
 
     def _load_all(self) -> List[Dict[str, Any]]:
-        """Parse every line in the JSONL file.
+        """解析 JSONL 文件中的每一行。
 
-        Silently skips malformed lines.
+        静默跳过格式错误的行。
         """
         if not self.traces_path.exists():
             return []

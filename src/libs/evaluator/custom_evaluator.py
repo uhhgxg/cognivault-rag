@@ -1,7 +1,7 @@
-"""Custom evaluator implementation for lightweight metrics.
+"""用于轻量级指标的自定义评估器实现。
 
-This evaluator computes simple, deterministic metrics such as hit rate and MRR.
-It is designed for fast regression checks and sanity validation.
+本评估器计算简单、确定性的指标，例如命中率和 MRR。
+适合做快速的回归检查和合理性校验。
 """
 
 from __future__ import annotations
@@ -12,10 +12,10 @@ from src.libs.evaluator.base_evaluator import BaseEvaluator
 
 
 class CustomEvaluator(BaseEvaluator):
-    """Custom evaluator for lightweight metrics (hit_rate, mrr).
+    """用于轻量级指标（hit_rate、mrr）的自定义评估器。
 
-    The evaluator expects retrieved chunks to contain an identifier field.
-    Supported id fields: id, chunk_id, document_id, doc_id.
+    本评估器要求检索到的切块里包含标识字段。
+    支持的 id 字段：id、chunk_id、document_id、doc_id。
     """
 
     SUPPORTED_METRICS = {"hit_rate", "mrr"}
@@ -47,10 +47,10 @@ class CustomEvaluator(BaseEvaluator):
         self.metrics = normalized
 
     def validate_retrieved_chunks(self, retrieved_chunks: List[Any]) -> None:
-        """Override to allow empty retrieved_chunks (valid for no-match queries)."""
+        """重写本方法，允许 retrieved_chunks 为空（无命中查询时是合法的）。"""
         if not isinstance(retrieved_chunks, list):
             raise ValueError("retrieved_chunks must be a list")
-        # Empty list is valid – metrics will naturally be 0.
+        # 空列表是合法的——指标自然会算成 0
 
     def evaluate(
         self,
@@ -61,18 +61,18 @@ class CustomEvaluator(BaseEvaluator):
         trace: Optional[Any] = None,
         **kwargs: Any,
     ) -> Dict[str, float]:
-        """Compute requested metrics for the given retrieval results.
+        """为给定的检索结果计算请求的指标。
 
-        Args:
-            query: The user query string.
-            retrieved_chunks: Retrieved chunks or records.
-            generated_answer: Optional generated answer (unused).
-            ground_truth: Ground truth ids or structure.
-            trace: Optional TraceContext (unused).
-            **kwargs: Additional parameters (unused).
+        参数：
+            query: 用户的查询字符串。
+            retrieved_chunks: 检索到的切块或记录。
+            generated_answer: 可选的生成答案（不使用）。
+            ground_truth: 标准答案的 id 或结构。
+            trace: 可选的 TraceContext（不使用）。
+            **kwargs: 额外参数（不使用）。
 
-        Returns:
-            Dictionary of metric name to float value.
+        返回：
+            指标名到浮点值的字典。
         """
         self.validate_query(query)
         self.validate_retrieved_chunks(retrieved_chunks)
@@ -90,7 +90,7 @@ class CustomEvaluator(BaseEvaluator):
         return results
 
     def _metrics_from_settings(self, settings: Any) -> List[str]:
-        """Extract metrics list from settings if available."""
+        """如果 settings 里有，就从中提取指标列表。"""
         if settings is None:
             return []
         metrics = getattr(getattr(settings, "evaluation", None), "metrics", None)
@@ -99,7 +99,7 @@ class CustomEvaluator(BaseEvaluator):
         return [str(metric) for metric in metrics]
 
     def _extract_ground_truth_ids(self, ground_truth: Optional[Any]) -> List[str]:
-        """Extract ground truth ids from various input shapes."""
+        """从多种输入形态中提取标准答案的 id。"""
         if ground_truth is None:
             return []
         if isinstance(ground_truth, str):
@@ -117,7 +117,7 @@ class CustomEvaluator(BaseEvaluator):
         )
 
     def _extract_ids(self, items: Iterable[Any], label: str) -> List[str]:
-        """Extract ids from a list of items."""
+        """从一组条目中提取 id。"""
         ids: List[str] = []
         for index, item in enumerate(items):
             if isinstance(item, str):
@@ -149,13 +149,13 @@ class CustomEvaluator(BaseEvaluator):
         return ids
 
     def _compute_hit_rate(self, retrieved_ids: Sequence[str], ground_truth_ids: Sequence[str]) -> float:
-        """Compute hit rate (binary)."""
+        """计算命中率（0 或 1）。"""
         if not ground_truth_ids:
             return 0.0
         return 1.0 if any(item in ground_truth_ids for item in retrieved_ids) else 0.0
 
     def _compute_mrr(self, retrieved_ids: Sequence[str], ground_truth_ids: Sequence[str]) -> float:
-        """Compute Mean Reciprocal Rank (MRR)."""
+        """计算平均倒数排名（MRR）。"""
         if not ground_truth_ids:
             return 0.0
         for rank, item in enumerate(retrieved_ids, start=1):

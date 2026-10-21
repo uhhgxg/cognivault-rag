@@ -1,4 +1,4 @@
-# RAGent / Modular RAG MCP Server — 全量架构总结
+# Cognivault — 全量架构总结
 
 > 本文档基于对项目完整源码的逐行阅读与推导生成，不引用任何既有文档，完全从代码层面还原系统架构。
 
@@ -6,7 +6,7 @@
 
 ## 一、项目定位与核心能力
 
-**RAGent**（项目内部代号 `rag-pro`，PyPI 包名 `modular-rag-mcp-server`）是一个**企业级模块化 RAG（Retrieval-Augmented Generation）知识库系统**。其核心定位是：
+**Cognivault**（Python 内部后端包路径暂保留为 `src/ragent_backend` 以兼容现有启动方式）是一个**企业级模块化 RAG（Retrieval-Augmented Generation）知识库系统**。其核心定位是：
 
 - **会话级知识隔离**：每个对话（Conversation）拥有独立的向量集合（`conv_{conversation_id}`），文件上传后仅在该对话范围内可被检索。
 - **多模态文档摄取**：支持 PDF、Word、Excel、PPT、Markdown、HTML、TXT、CSV、JSON、YAML 等格式的解析，支持图片提取与 VLM OCR 回退。

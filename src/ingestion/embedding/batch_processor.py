@@ -57,15 +57,15 @@ class BatchProcessor:
         sparse_encoder: SparseEncoder,
         batch_size: int = 100,
     ):
-        """Initialize BatchProcessor.
-        
-        Args:
-            dense_encoder: DenseEncoder instance for embedding generation
-            sparse_encoder: SparseEncoder instance for term statistics
-            batch_size: Number of chunks to process per batch (default: 100)
-        
-        Raises:
-            ValueError: If batch_size <= 0
+        """初始化 BatchProcessor。
+
+        参数：
+            dense_encoder: 用于生成向量的 DenseEncoder 实例
+            sparse_encoder: 用于词项统计的 SparseEncoder 实例
+            batch_size: 每个批次处理的 chunk 数量（默认 100）
+
+        可能抛出：
+            ValueError: 如果 batch_size <= 0
         """
         if batch_size <= 0:
             raise ValueError(f"batch_size must be positive, got {batch_size}")

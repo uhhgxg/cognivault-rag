@@ -35,7 +35,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-# LangGraph checkpointer
+# LangGraph checkpointer（检查点保存器）
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from src.ragent_backend.schemas import ChatRequest, ChatResponse, RollbackRequest

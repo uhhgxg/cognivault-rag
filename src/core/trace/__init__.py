@@ -1,9 +1,8 @@
-"""
-Trace Module.
+"""追踪模块。
 
-This package contains tracing components:
-- Trace context
-- Trace collector
+本包包含追踪相关组件：
+- 追踪上下文（Trace context）
+- 追踪采集器（Trace collector）
 """
 
 from src.core.trace.trace_context import TraceContext

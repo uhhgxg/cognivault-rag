@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>记忆与上下文处理详解 · RAGent</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#0b0e1a; --bg2:#11152a; --card:#161b33; --card2:#1d2342;
+    --border:#2a3158; --txt:#e6e9f5; --muted:#9aa0c0;
+    --accent:#7c8cff; --accent2:#5ad3c4; --accent3:#c084fc;
+    --warn:#ffb454; --danger:#ff6b6b; --ok:#4ade80;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
+    color:var(--txt);line-height:1.75;font-size:16px;
+    min-height:100vh;
+  }
+  .hero{padding:60px 24px 40px;text-align:center;background:radial-gradient(800px 400px at 50% -10%,rgba(192,132,252,.2),transparent 70%),linear-gradient(135deg,#1a1f3d,#0d1020);border-bottom:1px solid var(--border)}
+  .hero .tag{font-size:13px;color:var(--accent3);letter-spacing:3px;text-transform:uppercase;margin-bottom:8px}
+  .hero h1{font-size:36px;font-weight:800;background:linear-gradient(90deg,var(--accent3),var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px}
+  .hero .sub{color:var(--muted);max-width:720px;margin:0 auto}
+
+  .wrap{max-width:1100px;margin:0 auto;padding:30px 24px 80px}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 30px;margin-bottom:24px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  .card h2{font-size:22px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+  .card h2 .ic{font-size:24px}
+  .card .lead{color:var(--muted);font-size:15px;margin-bottom:18px}
+  .card h3{font-size:17px;font-weight:600;color:var(--accent2);margin:22px 0 10px}
+  .card h3 .num{display:inline-block;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));color:#fff;text-align:center;line-height:28px;font-size:14px;margin-right:8px}
+  .card p{margin-bottom:10px}
+  .card code{background:rgba(124,140,255,.12);padding:2px 6px;border-radius:5px;font-size:13px;color:var(--accent3);font-family:"Cascadia Code",Consolas,monospace}
+  .card pre{background:#0d1020;border:1px solid var(--border);border-radius:10px;padding:14px 16px;overflow:auto;font-size:13.5px;margin:12px 0;font-family:"Cascadia Code",Consolas,monospace}
+
+  .mermaid{background:#0d1020;border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;margin:14px 0}
+
+  .analogy{display:flex;gap:16px;align-items:flex-start;padding:18px;border-radius:12px;background:rgba(255,180,84,.06);border:1px dashed var(--warn);margin:16px 0}
+  .analogy .ai{font-size:28px}
+  .analogy .at b{color:var(--warn)}
+
+  .note{display:flex;gap:12px;padding:14px 16px;border-radius:12px;margin:14px 0}
+  .note.star{background:rgba(255,180,84,.1);border:1px solid rgba(255,180,84,.3)}
+  .note.tip{background:rgba(92,211,196,.08);border:1px solid rgba(92,211,196,.25)}
+  .note.warn{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3)}
+  .note .ni{font-size:18px}
+  .note .nb{color:var(--warn)} .note.tip .nb{color:var(--accent2)} .note.warn .nb{color:var(--danger)}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--border)}
+  th{color:var(--accent2);font-weight:600;background:rgba(92,211,196,.06)}
+  tr:hover td{background:rgba(124,140,255,.05)}
+
+  .layer-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:20px;margin:14px 0}
+  .layer-card .lt{font-size:18px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+  .layer-card .lt .badge{font-size:12px;padding:3px 10px;border-radius:12px;font-weight:600}
+  .layer-card .lt .b-hot{background:rgba(255,107,107,.2);color:#ff8e8e}
+  .layer-card .lt .b-warm{background:rgba(255,180,84,.2);color:#ffc987}
+  .layer-card .lt .b-cold{background:rgba(74,222,128,.15);color:#86e6a8}
+  .layer-card .lt .b-ltm{background:rgba(192,132,252,.2);color:#d8aaff}
+  .layer-card .lm{color:var(--muted);font-size:14px;margin-bottom:10px}
+  .layer-card ul{margin-left:20px}
+  .layer-card li{margin-bottom:6px}
+
+  .flow-step{position:relative;padding:16px 16px 16px 52px;margin-bottom:10px;background:var(--card2);border:1px solid var(--border);border-radius:12px}
+  .flow-step .fsn{position:absolute;left:14px;top:16px;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .flow-step b{color:var(--accent2)}
+
+  .key-row{display:flex;gap:12px;margin:10px 0;flex-wrap:wrap}
+  .key-chip{flex:1;min-width:200px;padding:12px 14px;background:var(--card2);border:1px solid var(--border);border-radius:10px}
+  .key-chip .kt{font-size:13px;color:var(--muted);margin-bottom:4px}
+  .key-chip .kv{font-weight:700;color:var(--txt);font-size:15px}
+  .key-chip .kv .c1{color:var(--accent2)} .key-chip .kv .c2{color:var(--accent3)}
+
+  .callout{text-align:center;padding:20px;border-radius:12px;background:linear-gradient(135deg,rgba(124,140,255,.12),rgba(192,132,252,.12));border:1px solid var(--border);margin:16px 0;font-size:17px;font-weight:600}
+  .callout span{color:var(--accent2)}
+
+  .footer{text-align:center;color:var(--muted);font-size:13px;padding:30px;border-top:1px solid var(--border)}
+
+  @media(max-width:700px){
+    .hero h1{font-size:26px}
+    .wrap{padding:20px 14px 60px}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="tag">Deep Dive · Memory & Context</div>
+  <h1>记忆与上下文处理详解</h1>
+  <p class="sub">RAGent 如何记住对话、压缩上下文、跨会话记住你——三层记忆 + 长期记忆的完整设计</p>
+</header>
+
+<div class="wrap">
+
+  <!-- 0. 总览 -->
+  <section class="card">
+    <h2><span class="ic">🗺️</span>先看全貌：四层记忆体系</h2>
+    <p class="lead">这个项目的记忆不是简单的"消息列表"，而是精心设计的四层结构，各司其职。</p>
+    <div class="mermaid">
+graph TB
+  subgraph L1["🔥 热记忆（给模型用的活跃记忆）"]
+    A["messages: Annotated[list, add_messages]<br/>最近的对话消息（滑动窗口内）"]
+    B["summary: str<br/>滚动摘要（旧消息压缩后的精华）"]
+  end
+
+  subgraph L2["📚 知识库记忆（外部知识）"]
+    C["ChromaDB 向量库 + BM25 索引<br/>每个会话一个 collection: conv_{id}"]
+  end
+
+  subgraph L3["🧊 冷记忆（给用户看的完整历史）"]
+    D["PostgreSQL: conversation_archive<br/>所有消息的完整存档"]
+  end
+
+  subgraph L4["🧠 长期记忆 LTM（跨会话）"]
+    E["PostgreSQL: long_term_memories<br/>关于用户的结构化事实"]
+  end
+
+  L1 --"超出窗口时压缩"--> L3
+  L3 --"归档所有消息"--> L3
+  L1 --"提取用户事实"--> L4
+  L4 --"会话开始时召回注入prompt"--> L1
+  L2 --"retrieve 节点检索"--> L1
+
+  style L1 fill:rgba(255,107,107,.1),stroke:#ff6b6b
+  style L2 fill:rgba(92,211,196,.08),stroke:#5ad3c4
+  style L3 fill:rgba(74,222,128,.08),stroke:#4ade80
+  style L4 fill:rgba(192,132,252,.12),stroke:#c084fc
+    </div>
+    <div class="callout">
+      一句话总结：<span>热记忆</span>负责让模型"想得起刚才说啥"，<span>冷记忆</span>负责让用户"看得到完整历史"，<span>LTM</span>负责让系统"记得你是谁"，<span>知识库</span>负责"查得到外部资料"。
+    </div>
+  </section>
+
+  <!-- 1. 热记忆 -->
+  <section class="card">
+    <h2><span class="ic">🔥</span>第一层：热记忆——模型的"工作内存"</h2>
+    <p class="lead">这是 LLM 每次回答时真正能看到的记忆，存在 LangGraph 的状态里。</p>
+
+    <div class="layer-card">
+      <div class="lt"><span class="badge b-hot">热记忆</span> messages + summary</div>
+      <div class="lm">位置：<code>RAGState</code>（LangGraph 状态），由 Checkpointer 持久化到 PostgreSQL</div>
+      <ul>
+        <li><b>messages</b>：对话消息列表，用 LangGraph 的 <code>Annotated[list, add_messages]</code> 管理——支持追加新消息，也支持 <code>RemoveMessage</code> 删除旧消息</li>
+        <li><b>summary</b>：滚动摘要字符串——旧消息被压缩后，精华内容存在这里</li>
+      </ul>
+    </div>
+
+    <h3><span class="num">1</span>核心机制：滑动窗口压缩</h3>
+    <p>消息不能无限堆下去（LLM 上下文有限 + 越来越贵），所以项目用了<strong>滑动窗口 + 滚动摘要</strong>的策略：</p>
+    <div class="key-row">
+      <div class="key-chip"><div class="kt">窗口上限</div><div class="kv"><span class="c1">max_messages = 20</span></div></div>
+      <div class="key-chip"><div class="kt">保留最近</div><div class="kv"><span class="c1">keep_recent = 4</span></div></div>
+      <div class="key-chip"><div class="kt">摘要上限</div><div class="kv"><span class="c1">summary_max_length = 500字</span></div></div>
+    </div>
+
+    <div class="mermaid">
+graph LR
+  subgraph Before["压缩前（22条，超限）"]
+    M1["msg 1"] ~~~ M2["msg 2"] ~~~ M3["..."] ~~~ M18["msg 18"] ~~~ M19["msg 19<br/>(用户)"] ~~~ M20["msg 20<br/>(助手)"] ~~~ M21["msg 21<br/>(用户)"] ~~~ M22["msg 22<br/>(助手)"]
+  end
+  subgraph After["压缩后（4条 + 新摘要）"]
+    S["📝 新 summary<br/>(旧18条的精华摘要)"]
+    K1["msg 19<br/>(用户)"] ~~~ K2["msg 20<br/>(助手)"] ~~~ K3["msg 21<br/>(用户)"] ~~~ K4["msg 22<br/>(助手)"]
+  end
+  Before --"compact 压缩"--> After
+  style S fill:#3b2d6e,stroke:#c084fc,color:#fff
+    </div>
+
+    <h3><span class="num">2</span>压缩过程（memory_manage 节点做的事）</h3>
+    <div class="flow-step"><div class="fsn">1</div>检查消息数是否超过 <code>max_messages(20)</code>，没超就啥也不做直接返回。</div>
+    <div class="flow-step"><div class="fsn">2</div>超过了就保留最近 <code>keep_recent(4)</code> 条，其余的要被"裁掉"。</div>
+    <div class="flow-step"><div class="fsn">3</div>把裁掉的消息 + 旧 summary 一起喂给 LLM，让它重写一个新摘要（保留专有名词、结论、用户偏好，只压缩冗余）。</div>
+    <div class="flow-step"><div class="fsn">4</div>生成 <code>RemoveMessage(id=xxx)</code> 操作列表——LangGraph 的 <code>add_messages</code> 注解遇到 RemoveMessage 会自动删对应消息。</div>
+    <div class="flow-step"><div class="fsn">5</div>返回 <code>{messages: delete_ops, summary: new_summary, _to_archive: archived_data}</code>。</div>
+
+    <div class="note tip">
+      <span class="ni">💡</span>
+      <div><span class="nb">关键设计</span>：<code>messages</code> 字段用了 <code>Annotated[List[AnyMessage], add_messages]</code>，这是 LangGraph 的"消息归约器"——返回普通消息就是追加，返回 <code>RemoveMessage</code> 就是删除。状态更新不是全量覆盖，而是"增量操作"，这让多节点并发写消息也不会互相覆盖。</div>
+    </div>
+
+    <h3><span class="num">3</span>降级策略（LLM 挂了也不怕）</h3>
+    <p>如果 LLM 重写摘要失败，会走 <code>_fallback_summary</code>：简单拼接旧摘要 + 最近4条归档消息的前120字。虽然质量差点，但系统不会崩。</p>
+
+    <p>📁 关键代码：<code>src/ragent_backend/memory_manager.py</code> → <code>RollingMemoryManager</code></p>
+  </section>
+
+  <!-- 2. 冷记忆 -->
+  <section class="card">
+    <h2><span class="ic">🧊</span>第二层：冷记忆——完整历史归档</h2>
+    <p class="lead">热记忆会被压缩，但用户想看完整对话怎么办？答案是——分开存。</p>
+
+    <div class="layer-card">
+      <div class="lt"><span class="badge b-cold">冷记忆</span> conversation_archive 表</div>
+      <div class="lm">位置：PostgreSQL，由 <code>ConversationArchiveStore</code> 管理</div>
+      <ul>
+        <li><b>存的是完整历史</b>：所有消息一条不落，给前端展示"对话记录"用</li>
+        <li><b>异步写入</b>：用 <code>asyncio.create_task</code> 后台写库，不阻塞用户拿到回答</li>
+        <li><b>按 turn 标记</b>：每条消息都带 <code>turn_id</code>，支持回滚到任意一轮</li>
+        <li><b>不给模型看</b>：LLM 回答时不会加载这些，只给用户界面展示用</li>
+      </ul>
+    </div>
+
+    <div class="analogy">
+      <div class="ai">📋</div>
+      <div class="at">
+        <b>通俗类比</b>
+        <p>热记忆就像你电脑上的"内存条"——快、但容量有限，只放当前在用的东西。冷记忆就像"硬盘"——容量大、慢点没关系，存所有历史文件。你写文档时只看内存里的内容，但完整文件都在硬盘上存着。</p>
+      </div>
+    </div>
+
+    <h3>归档节点（archive 节点）做的事</h3>
+    <div class="flow-step"><div class="fsn">1</div>拿 <code>_to_archive</code>（被压缩的旧消息，可能为空）。</div>
+    <div class="flow-step"><div class="fsn">2</div>从当前 messages 取最后2条（本轮的用户问题 + 助手回答）。</div>
+    <div class="flow-step"><div class="fsn">3</div>合并后用 <code>asyncio.create_task</code> 异步写入 <code>conversation_archive</code> 表，带 <code>turn_id</code>。</div>
+    <div class="flow-step"><div class="fsn">4</div>顺便触发 LTM 提取（也是异步），从本轮 Q&A 里提炼用户事实。</div>
+
+    <div class="note star">
+      <span class="ni">⭐</span>
+      <div><span class="nb">重点</span>：archive 节点<strong>总是运行</strong>（工作流的最后一站），无论有没有压缩，本轮新消息都会被归档。这样冷记忆永远是完整的，热记忆可以放心压缩。</div>
+    </div>
+
+    <p>📁 关键代码：<code>src/ragent_backend/store.py</code> → <code>ConversationArchiveStore</code></p>
+  </section>
+
+  <!-- 3. LTM -->
+  <section class="card">
+    <h2><span class="ic">🧠</span>第三层：长期记忆 LTM——"我记得你"</h2>
+    <p class="lead">跨会话的用户画像记忆。你开新对话，它还能想起你是谁、喜欢什么。</p>
+
+    <div class="layer-card">
+      <div class="lt"><span class="badge b-ltm">长期记忆</span> long_term_memories 表</div>
+      <div class="lm">位置：PostgreSQL，由 <code>LTMStore</code> 管理</div>
+      <ul>
+        <li><b>存的是结构化事实</b>：比如"用户是金融风控工程师，用 Python"、"用户偏好简洁的技术回答"</li>
+        <li><b>自动提取</b>：每轮对话结束后，让 LLM 从 Q&A 里提炼 0~3 条用户事实</li>
+        <li><b>自动召回</b>：新对话开始时（session 节点），根据当前 query 召回最相关的 3 条注入 state</li>
+        <li><b>按用户隔离</b>：每个 user_id 有自己的记忆池，不会串</li>
+      </ul>
+    </div>
+
+    <h3>召回排序算法（不用向量，用轻量规则）</h3>
+    <p>LTM 召回没有用向量检索，而是一个很轻量的打分公式：</p>
+    <pre><code>score = 关键词命中数 × 10    # query 里的词在事实里出现几次
+      + max(0, 24 - 年龄小时数)  # 时间衰减，24小时内的记忆加权重
+      + 访问次数 × 2            # 被召回过越多越重要</code></pre>
+
+    <div class="analogy">
+      <div class="ai">🎯</div>
+      <div class="at">
+        <b>通俗类比</b>
+        <p>长期记忆就像你的"人脉本"——每认识一个人，记下几条关于他的关键信息（职业、喜好、禁忌）。下次见面时，先翻翻人脉本找几条最相关的揣在心里，聊天时就显得"你还记得啊"，很贴心。</p>
+      </div>
+    </div>
+
+    <div class="note tip">
+      <span class="ni">💡</span>
+      <div><span class="nb">设计巧思</span>：LTM 提取是异步在 archive 节点做的，<b>不增加用户等待时间</b>；召回只在 session 节点做一次，也只取 top 3，不会让 prompt 膨胀。低开销、高收益。</div>
+    </div>
+
+    <p>📁 关键代码：<code>src/ragent_backend/ltm_store.py</code> → <code>LTMStore</code></p>
+  </section>
+
+  <!-- 4. 知识库记忆 -->
+  <section class="card">
+    <h2><span class="ic">📚</span>第四层：知识库记忆——RAG 的"外部大脑"</h2>
+    <p class="lead">这层是 RAG 的本质：把文档变成可检索的知识，回答时拿出来当参考。</p>
+
+    <div class="layer-card">
+      <div class="lt"><span class="badge" style="background:rgba(92,211,196,.15);color:#5ad3c4">知识库记忆</span> ChromaDB + BM25</div>
+      <div class="lm">位置：ChromaDB（向量）+ JSON 文件（BM25索引），会话级隔离</div>
+      <ul>
+        <li><b>会话级隔离</b>：每个对话一个 collection，名字是 <code>conv_{conversation_id}</code></li>
+        <li><b>双索引</b>：向量索引（语义匹配）+ BM25 索引（关键词匹配），混合检索</li>
+        <li><b>什么时候注入</b>：retrieve 节点根据 query 检索出 top_k 条相关知识，拼进生成时的 prompt</li>
+        <li><b>不算"对话记忆"</b>：它是外部知识，不是对话历史，但对回答质量至关重要</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 5. 工作流中的完整时序 -->
+  <section class="card">
+    <h2><span class="ic">🔄</span>完整时序：一轮对话中记忆的变化</h2>
+    <p class="lead">跟着一轮对话走一遍，看每一层记忆在什么时候被读写。</p>
+    <div class="mermaid">
+sequenceDiagram
+  participant U as 用户
+  participant S as session节点
+  participant I as intent节点
+  participant R as retrieve节点
+  participant G as generate节点
+  participant M as memory_manage节点
+  participant A as archive节点
+  participant CP as Checkpoint<br/>(热记忆持久化)
+  participant DB as PostgreSQL<br/>(冷记忆+LTM)
+  participant KB as 知识库<br/>(Chroma+BM25)
+
+  U->>S: 发问题
+  Note over S: ① 从 Checkpoint 加载 messages+summary
+  Note over S: ② 召回 LTM 注入 state
+  Note over S: ③ 生成 turn_id
+  S->>I: 意图识别（带历史消息+summary）
+  I->>R: rag 分支，去检索
+  R->>KB: 混合检索 top_k
+  KB-->>R: 相关知识块
+  R->>G: 知识 + 问题 + 历史 + summary
+  G-->>M: 生成回答
+  Note over M: ④ 检查消息数是否超限
+  alt 超了
+    M->>M: compact：删旧消息 + 重写 summary
+    M-->>CP: RemoveMessage + 新 summary（LangGraph自动存）
+  else 没超
+    M-->>CP: 只追加新消息
+  end
+  M->>A: 传待归档消息
+  Note over A: ⑤ 异步归档本轮消息到 conversation_archive
+  Note over A: ⑥ 异步提取 LTM 事实存 long_term_memories
+  A-->>U: 回答已返回（归档在后台继续）
+    </div>
+  </section>
+
+  <!-- 6. 三层时间裁剪回滚 -->
+  <section class="card">
+    <h2><span class="ic">⏪</span>高级功能：三层时间裁剪回滚</h2>
+    <p class="lead">用户说"回到上一步"时，系统能精确回滚到任意一轮。怎么做到的？</p>
+
+    <p>答案是<strong> turn_id + 三层联动删除</strong>：每轮对话都生成一个唯一的 <code>current_turn_id</code>，标记在所有相关数据上。回滚时按 turn_id 一起删：</p>
+
+    <div class="key-row">
+      <div class="key-chip"><div class="kt">第1层</div><div class="kv"><span class="c1">Checkpoint</span><br/>LangGraph 状态回退</div></div>
+      <div class="key-chip"><div class="kt">第2层</div><div class="kv"><span class="c2">conversation_archive</span><br/>归档消息删除</div></div>
+      <div class="key-chip"><div class="kt">第3层</div><div class="kv"><span class="c1">long_term_memories</span><br/>该轮提取的LTM清除</div></div>
+    </div>
+
+    <div class="note star">
+      <span class="ni">⭐</span>
+      <div><span class="nb">为什么厉害</span>：很多 RAG 系统回滚只删界面上的消息，实际上模型记忆还在（"表面忘了，心里还记得"）。这个项目是三层一起回滚——模型状态、用户可见历史、长期记忆全部清理干净，真正的"时光倒流"。</div>
+    </div>
+  </section>
+
+  <!-- 7. Prompt 组装 -->
+  <section class="card">
+    <h2><span class="ic">📝</span>生成时的 Prompt 是怎么拼的</h2>
+    <p class="lead">LLM 最终看到的上下文长什么样？各层记忆按什么顺序拼进去？</p>
+
+    <pre><code>【系统提示】你是一个知识助手...
+
+【长期记忆】（如果有）
+- 用户事实1
+- 用户事实2
+
+【对话摘要】（如果有）
+之前的对话精华摘要...
+
+【最近对话】
+User: 最近的问题1
+Assistant: 最近的回答1
+User: 最近的问题2
+Assistant: 最近的回答2
+...
+
+【参考资料】（检索结果）
+[1] 文档片段1...
+[2] 文档片段2...
+
+【当前问题】
+用户的最新问题
+
+请基于参考资料回答...</code></pre>
+
+    <div class="note tip">
+      <span class="ni">💡</span>
+      <div><span class="nb">位置很重要</span>：长期记忆放最前面（系统级），摘要次之（历史背景），最近对话在中间（近因效应），参考资料和当前问题放最后（最相关的内容离输出越近，模型越重视）。这是 prompt 工程的小技巧。</div>
+    </div>
+  </section>
+
+  <!-- 8. 关键文件速查 -->
+  <section class="card">
+    <h2><span class="ic">📂</span>关键文件速查表</h2>
+    <table>
+      <tr><th>文件</th><th>职责</th><th>重点看什么</th></tr>
+      <tr><td><code>src/ragent_backend/schemas.py</code></td><td>RAGState 状态定义</td><td>Annotated + add_messages 的用法，状态里有哪些记忆字段</td></tr>
+      <tr><td><code>src/ragent_backend/memory_manager.py</code></td><td>滑动窗口压缩</td><td>compact 方法、_rewrite_summary 的 prompt 设计、降级策略</td></tr>
+      <tr><td><code>src/ragent_backend/workflow.py</code></td><td>工作流记忆节点</td><td>_session_node、_memory_manage_node、_archive_node</td></tr>
+      <tr><td><code>src/ragent_backend/store.py</code></td><td>冷记忆归档</td><td>ConversationArchiveStore 的 append_to_history、delete_messages_from_turn</td></tr>
+      <tr><td><code>src/ragent_backend/ltm_store.py</code></td><td>长期记忆</td><td>extract_facts 的 prompt、retrieve_facts 的打分公式</td></tr>
+      <tr><td><code>src/ragent_backend/conversation_store.py</code></td><td>对话元信息</td><td>conversations 表的 CRUD，会话列表管理</td></tr>
+    </table>
+  </section>
+
+  <!-- 9. 新手易踩坑 -->
+  <section class="card">
+    <h2><span class="ic">⚠️</span>新手易踩的 5 个坑</h2>
+    <div class="flow-step"><div class="fsn">1</div><b>"我删了消息，模型怎么还记得？"</b><br/>你可能只清了前端界面或 archive 表，没清 LangGraph 的 Checkpoint。热记忆在 Checkpoint 里，模型靠它思考。</div>
+    <div class="flow-step"><div class="fsn">2</div><b>"为什么对话超过20条后，早期的内容模型忘了？"</b><br/>因为滑动窗口压缩了——旧消息被揉进 summary 了，细节会丢失。这是正常的 trade-off（上下文长度 vs 记忆精度）。</div>
+    <div class="flow-step"><div class="fsn">3</div><b>"我换了个 conversation_id，文档怎么搜不到了？"</b><br/>因为知识库是会话级隔离的，每个对话一个独立 collection。上传到 A 对话的文档，B 对话看不到。</div>
+    <div class="flow-step"><div class="fsn">4</div><b>"LTM 怎么没生效？"</b><br/>LTM 是按 user_id 存的，user_id 默认是 "1"。检查你传的 user_id 对不对，而且要至少完成一轮完整对话（archive 成功）后才会有 LTM 记录。</div>
+    <div class="flow-step"><div class="fsn">5</div><b>"归档消息写入失败了怎么办？"</b><br/>归档是异步的，失败只会打日志，不会影响用户拿到回答。去看控制台日志里的 <code>[Archive] Failed</code>，多半是 PostgreSQL 没连好。</div>
+  </section>
+
+  <div class="footer">
+    RAGent 记忆体系详解 · 热记忆 / 冷记忆 / 长期记忆 / 知识库 四层联动
+  </div>
+
+</div>
+
+<script>
+  mermaid.initialize({startOnLoad:true, theme:'dark', themeVariables:{
+    primaryColor:'#3b2d6e', primaryTextColor:'#e6e9f5', primaryBorderColor:'#7c8cff',
+    lineColor:'#9aa0c0', secondaryColor:'#1d2342', tertiaryColor:'#161b33',
+    fontSize:'14px'
+  }});
+</script>
+</body>
+</html>

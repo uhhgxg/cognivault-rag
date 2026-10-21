@@ -1,10 +1,10 @@
 """
-Embedding Module.
+向量化模块。
 
-This package contains embedding components:
-- Dense encoder
-- Sparse encoder (BM25)
-- Batch processor
+本包包含向量化相关组件：
+- 稠密编码器（Dense）
+- 稀疏编码器（BM25）
+- 批处理器
 """
 
 from src.ingestion.embedding.dense_encoder import DenseEncoder

@@ -1,9 +1,9 @@
-"""Evaluator Module.
+"""评估器（Evaluator）模块。
 
-This package contains evaluation abstractions and implementations:
-- Base evaluator class
-- Evaluator factory
-- Implementations (Custom)
+本包包含评估器的抽象定义和具体实现：
+- 基础评估器类（父类）
+- 评估器工厂
+- 具体实现（自定义评估器）
 """
 
 from src.libs.evaluator.base_evaluator import BaseEvaluator, NoneEvaluator

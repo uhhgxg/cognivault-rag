@@ -1,14 +1,13 @@
-"""Abstract base class for document loaders.
+"""文档加载器的抽象基类（父类）。
 
-This module defines the pluggable interface for document loaders,
-enabling seamless loading of different document formats (PDF, Markdown, etc.)
-with unified output structure.
+本模块定义了文档加载器的可插拔接口，
+支持以统一的输出结构无缝加载不同文档格式（PDF、Markdown 等）。
 
-Design Principles:
-- Single Responsibility: Loaders only handle format unification + structure extraction
-- Type Safety: Return standardized Document type from core.types
-- No Splitting: Loaders don't chunk documents, only parse and normalize
-- Graceful Degradation: Failures in optional features (e.g., image extraction) shouldn't block text parsing
+设计原则：
+- 单一职责（Single Responsibility）：加载器只负责格式统一 + 结构提取
+- 类型安全（Type Safety）：返回 core.types 中标准化的 Document 类型
+- 不做切分（No Splitting）：加载器不做文档切块，只做解析和归一化
+- 优雅降级（Graceful Degradation）：可选功能（如图片提取）失败时不应阻断文本解析
 """
 
 from __future__ import annotations
@@ -21,57 +20,56 @@ from src.core.types import Document
 
 
 class BaseLoader(ABC):
-    """Abstract base class for document loaders.
-    
-    All loaders must implement the load() method to parse a file
-    and return a standardized Document object with:
-    - text: Normalized content (preferably Markdown format)
-    - metadata: At minimum must contain 'source_path'
-    
-    Loaders should handle:
-    - Format-specific parsing logic
-    - Metadata extraction (title, page count, etc.)
-    - Structure normalization (to Markdown when possible)
-    - Optional: Image extraction and placeholder insertion
+    """文档加载器的抽象基类（父类）。
+
+    所有加载器都必须实现 load() 方法，解析文件并返回标准化的 Document 对象，包含：
+    - text：归一化后的内容（尽量使用 Markdown 格式）
+    - metadata：至少必须包含 'source_path'
+
+    加载器应当处理：
+    - 格式专属的解析逻辑
+    - 元数据提取（标题、页数等）
+    - 结构归一化（尽量转成 Markdown）
+    - 可选：图片提取与占位符插入
     """
-    
+
     @abstractmethod
     def load(self, file_path: str | Path) -> Document:
-        """Load and parse a document file.
-        
+        """加载并解析一个文档文件。
+
         Args:
-            file_path: Path to the document file to load.
-            
+            file_path: 待加载的文档文件路径。
+
         Returns:
-            Document object with parsed content and metadata.
-            metadata MUST contain at least 'source_path'.
-            
+            包含解析内容和元数据的 Document 对象。
+            metadata 至少必须包含 'source_path'。
+
         Raises:
-            FileNotFoundError: If the file doesn't exist.
-            ValueError: If the file format is invalid or unsupported.
-            RuntimeError: If parsing fails critically.
-            
+            FileNotFoundError: 当文件不存在时。
+            ValueError: 当文件格式无效或不被支持时。
+            RuntimeError: 当解析出现致命错误时。
+
         Example:
             >>> loader = PdfLoader()
             >>> doc = loader.load("data/documents/report.pdf")
             >>> assert "source_path" in doc.metadata
-            >>> assert doc.text  # Non-empty text
+            >>> assert doc.text  # 非空文本
         """
         pass
-    
+
     @staticmethod
     def _validate_file(file_path: str | Path) -> Path:
-        """Validate that file exists and is readable.
-        
+        """校验文件是否存在且可读。
+
         Args:
-            file_path: Path to validate.
-            
+            file_path: 待校验的路径。
+
         Returns:
-            Resolved Path object.
-            
+            解析后的 Path 对象。
+
         Raises:
-            FileNotFoundError: If file doesn't exist.
-            PermissionError: If file is not readable.
+            FileNotFoundError: 当文件不存在时。
+            PermissionError: 当文件不可读时。
         """
         path = Path(file_path).resolve()
         if not path.exists():

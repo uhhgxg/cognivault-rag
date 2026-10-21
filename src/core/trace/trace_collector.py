@@ -1,9 +1,8 @@
-"""Trace collector – receives finished TraceContext and persists them.
+"""追踪采集器——接收已完成的 TraceContext 并将其持久化。
 
-The collector is the bridge between in-memory TraceContext objects and
-the on-disk JSON Lines log used by the Dashboard.  It is intentionally
-decoupled from the logging module so that trace persistence remains
-predictable and testable.
+采集器是内存中的 TraceContext 对象与 Dashboard 使用的磁盘 JSON Lines
+日志之间的桥梁。它刻意与 logging 模块解耦，以保证追踪持久化行为
+可预测、可测试。
 """
 
 import json
@@ -16,16 +15,16 @@ from src.core.trace.trace_context import TraceContext
 
 logger = logging.getLogger(__name__)
 
-# Default absolute path for traces file (CWD-independent)
+# traces 文件的默认绝对路径（与当前工作目录无关）
 _DEFAULT_TRACES_PATH = resolve_path("logs/traces.jsonl")
 
 
 class TraceCollector:
-    """Collects finished traces and appends them to a JSON Lines file.
+    """收集已完成的追踪，并将其追加写入 JSON Lines 文件。
 
-    Args:
-        traces_path: File path for the ``traces.jsonl`` output.
-            Parent directories are created automatically.
+    参数：
+        traces_path: ``traces.jsonl`` 输出文件的路径。
+            父目录会自动创建。
     """
 
     def __init__(self, traces_path: str | Path = _DEFAULT_TRACES_PATH) -> None:
@@ -33,13 +32,13 @@ class TraceCollector:
         self._path.parent.mkdir(parents=True, exist_ok=True)
 
     def collect(self, trace: TraceContext) -> None:
-        """Persist a single trace as one JSON line.
+        """将单条追踪持久化为一行 JSON。
 
-        If the trace has not been finished yet, ``finish()`` is called
-        automatically so the output always contains timing data.
+        如果追踪尚未结束，会自动调用 ``finish()``，
+        以保证输出始终包含计时数据。
 
-        Args:
-            trace: A populated :class:`TraceContext`.
+        参数：
+            trace: 一个已填充数据的 :class:`TraceContext`。
         """
         if trace.finished_at is None:
             trace.finish()
@@ -53,5 +52,5 @@ class TraceCollector:
 
     @property
     def path(self) -> Path:
-        """Return the resolved path of the traces file."""
+        """返回 traces 文件的解析后路径。"""
         return self._path

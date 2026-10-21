@@ -51,12 +51,12 @@ class RAGEvalRunner:
         ragas_evaluator: Any,
         custom_evaluator: Any = None,
     ) -> None:
-        """Initialize RAGEvalRunner.
+        """初始化 RAGEvalRunner。
 
         Args:
-            workflow: RAGWorkflow instance for end-to-end execution.
-            ragas_evaluator: Evaluator for LLM-as-Judge metrics (e.g. Ragas).
-            custom_evaluator: Optional evaluator for IR metrics (e.g. hit_rate/MRR).
+            workflow: 用于端到端执行的 RAGWorkflow 实例。
+            ragas_evaluator: 用于 LLM 评分指标的评估器（例如 Ragas）。
+            custom_evaluator: 可选，用于 IR 指标的评估器（例如 hit_rate/MRR）。
         """
         self.workflow = workflow
         self.ragas_evaluator = ragas_evaluator
@@ -67,14 +67,14 @@ class RAGEvalRunner:
         test_set_path: str | Path,
         top_k: int = 10,
     ) -> EvalReport:
-        """Run end-to-end evaluation on the golden test set.
+        """对黄金测试集运行端到端评估。
 
         Args:
-            test_set_path: Path to golden_test_set_v2.json.
-            top_k: Number of chunks to retrieve per query.
+            test_set_path: golden_test_set_v2.json 的路径。
+            top_k: 每条查询要检索的 chunk 数量。
 
         Returns:
-            EvalReport with per-query and aggregate metrics.
+            包含每条查询和汇总指标的 EvalReport。
         """
         test_cases = load_test_set(test_set_path)
         if not test_cases:
@@ -113,11 +113,11 @@ class RAGEvalRunner:
         test_case: GoldenTestCase,
         top_k: int = 10,
     ) -> QueryResult:
-        """Evaluate a single test case end-to-end."""
+        """端到端地评估单个测试用例。"""
         t0 = time.monotonic()
         qr = QueryResult(query=test_case.query)
 
-        # Step 1: Run full RAGWorkflow
+        # 第 1 步：运行完整的 RAGWorkflow
         thread_id = f"eval_{uuid.uuid4().hex[:8]}"
         initial_state = {
             "query": test_case.query,
@@ -134,7 +134,7 @@ class RAGEvalRunner:
             qr.elapsed_ms = (time.monotonic() - t0) * 1000.0
             return qr
 
-        # Step 2: Extract answer and retrieved contexts
+        # 第 2 步：提取回答和检索到的上下文
         answer = final_state.get("final_answer", "")
         contexts = final_state.get("retrieval_contexts", [])
         if not contexts and final_state.get("retrieval_context"):
@@ -144,7 +144,7 @@ class RAGEvalRunner:
         # 尝试从上下文中提取 chunk ids（当前以字符串形式存储，id 提取为 best effort）
         qr.retrieved_chunk_ids = self._extract_chunk_ids(contexts)
 
-        # Step 3: Ragas evaluation
+        # 第 3 步：Ragas 评估
         metrics: Dict[str, float] = {}
         if answer and self.ragas_evaluator is not None:
             try:
@@ -157,7 +157,7 @@ class RAGEvalRunner:
             except Exception as exc:
                 logger.warning("Ragas evaluation failed for '%s': %s", test_case.query[:40], exc)
 
-        # Step 4: Custom evaluation (IR metrics)
+        # 第 4 步：自定义评估（IR 指标）
         if self.custom_evaluator is not None:
             try:
                 ground_truth = (
@@ -181,7 +181,7 @@ class RAGEvalRunner:
 
     @staticmethod
     def _extract_chunk_ids(contexts: List[Any]) -> List[str]:
-        """Best-effort extraction of chunk ids from retrieval contexts."""
+        """尽力从检索上下文中提取 chunk id。"""
         ids = []
         for ctx in contexts:
             if isinstance(ctx, dict):
@@ -195,7 +195,7 @@ class RAGEvalRunner:
 
     @staticmethod
     def _aggregate_metrics(results: List[QueryResult]) -> Dict[str, float]:
-        """Compute average metrics across all query results."""
+        """计算所有查询结果的平均指标。"""
         if not results:
             return {}
 
@@ -212,14 +212,14 @@ class RAGEvalRunner:
 
 
 def analyze_by_tags(report: EvalReport, test_cases: List[GoldenTestCase]) -> Dict[str, Dict[str, float]]:
-    """Aggregate metrics grouped by test case tags.
+    """按测试用例标签分组的指标汇总。
 
     Args:
-        report: EvalReport from RAGEvalRunner.run()
-        test_cases: Original golden test cases (must align with report.query_results).
+        report: 由 RAGEvalRunner.run() 产生的 EvalReport。
+        test_cases: 原始的黄金测试用例（必须与 report.query_results 一一对应）。
 
     Returns:
-        Mapping tag -> {metric_name: average_value}
+        映射：tag -> {metric_name: 平均值}。
     """
     tag_metrics: Dict[str, List[Dict[str, float]]] = {}
 

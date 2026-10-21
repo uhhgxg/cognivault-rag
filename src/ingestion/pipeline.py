@@ -24,13 +24,13 @@ from src.core.types import Document, Chunk
 from src.core.trace.trace_context import TraceContext
 from src.observability.logger import get_logger
 
-# Libs layer imports
+# Libs 层导入
 from src.libs.loader.file_integrity import SQLiteIntegrityChecker
 from src.libs.loader.universal_loader import UniversalLoader
 from src.libs.embedding.embedding_factory import EmbeddingFactory
 from src.libs.vector_store.vector_store_factory import VectorStoreFactory
 
-# Ingestion layer imports
+# Ingestion 层导入
 from src.ingestion.chunking.document_chunker import DocumentChunker
 from src.ingestion.transform.chunk_refiner import ChunkRefiner
 from src.ingestion.transform.metadata_enricher import MetadataEnricher
@@ -345,7 +345,7 @@ class IngestionPipeline:
             logger.info("\n🔄 Stage 4: Transform Pipeline")
             _notify("transform", 4)
             
-            # 4a: Chunk Refinement
+            # 4a: 分块精炼
             # 
             logger.info("  4a. Chunk Refinement...")
             # 对切分后的文本块进行清洗+优化(段落合并,连贯性增强)，提升检索质量
@@ -358,7 +358,7 @@ class IngestionPipeline:
             refined_by_rule = sum(1 for c in chunks if c.metadata.get("refined_by") == "rule")
             logger.info(f"      LLM refined: {refined_by_llm}, Rule refined: {refined_by_rule}")
             
-            # 4b: Metadata Enrichment
+            # 4b: 元数据增强
             logger.info("  4b. Metadata Enrichment...")
             # 从正文中提取元数据
             chunks = self.metadata_enricher.transform(chunks, trace)
@@ -366,7 +366,7 @@ class IngestionPipeline:
             enriched_by_rule = sum(1 for c in chunks if c.metadata.get("enriched_by") == "rule")
             logger.info(f"      LLM enriched: {enriched_by_llm}, Rule enriched: {enriched_by_rule}")
             
-            # 4c: Image Captioning
+            # 4c: 图片描述
             # 给原先的占位符添加描述
             logger.info("  4c. Image Captioning...")
             chunks = self.image_captioner.transform(chunks, trace)
@@ -479,8 +479,8 @@ class IngestionPipeline:
             vector_ids = self.vector_upserter.upsert(chunks, dense_vectors, trace)
             logger.info(f"      Stored {len(vector_ids)} vectors")
 
-            # Align BM25 chunk_ids with Chroma vector IDs so the SparseRetriever
-            # can look up BM25 hits in the vector store after retrieval.
+            # 把 BM25 的 chunk_id 和 Chroma 的向量 ID 对齐，这样 SparseRetriever
+            # 可以在检索后从向量库中查回 BM25 命中的结果。
             # 说明：BM25 命中后，仍需要通过向量库取回统一结构文本/metadata，
             # 因此这里做一次 ID 对齐，保证跨检索链路可互通。
             for stat, vid in zip(sparse_stats, vector_ids):

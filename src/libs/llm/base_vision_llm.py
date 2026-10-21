@@ -1,12 +1,11 @@
-"""Abstract base class for Vision LLM providers.
+"""Vision LLM 服务提供方的抽象基类（父类）。
 
-This module defines the pluggable interface for Vision Language Model providers,
-enabling multimodal interactions (text + image) with seamless switching between
-different backends (Azure Vision, Ollama Vision, etc.) through configuration.
+本模块定义了 Vision Language Model 服务提供方的可插拔接口，
+支持多模态交互（文本 + 图片），通过配置即可在不同后端
+（Azure Vision、Ollama Vision 等）之间无缝切换。
 
-Vision LLMs extend standard LLMs by accepting image inputs alongside text prompts,
-enabling tasks like image captioning, visual question answering, and document
-understanding with embedded images.
+Vision LLM 在标准 LLM 基础上扩展，可同时接收图片输入和文本提示，
+从而支持图像描述（caption）、视觉问答、含内嵌图片的文档理解等任务。
 """
 
 from __future__ import annotations
@@ -21,26 +20,26 @@ from src.libs.llm.base_llm import ChatResponse, Message
 
 @dataclass
 class ImageInput:
-    """Represents an image input for Vision LLM.
-    
-    Supports multiple input formats:
-    - File path: Local image file to be read and encoded
-    - Bytes: Raw image bytes (already loaded)
-    - Base64: Already encoded image string
-    
+    """表示 Vision LLM 的图片输入。
+
+    支持多种输入格式：
+    - 文件路径：本地图片文件，会被读取并编码
+    - 字节：原始图片字节（已加载）
+    - Base64：已编码好的图片字符串
+
     Attributes:
-        path: Path to the image file (if loading from disk).
-        data: Raw image bytes (if already loaded).
-        base64: Base64-encoded image string (if already encoded).
-        mime_type: MIME type of the image (e.g., 'image/png', 'image/jpeg').
+        path: 图片文件路径（从磁盘加载时使用）。
+        data: 原始图片字节（已加载时使用）。
+        base64: Base64 编码的图片字符串（已编码时使用）。
+        mime_type: 图片的 MIME 类型（例如 'image/png'、'image/jpeg'）。
     """
     path: Optional[Union[str, Path]] = None
     data: Optional[bytes] = None
     base64: Optional[str] = None
     mime_type: str = "image/png"
-    
+
     def __post_init__(self) -> None:
-        """Validate that exactly one input format is provided."""
+        """校验是否恰好提供了一种输入格式。"""
         provided_inputs = sum([
             self.path is not None,
             self.data is not None,
@@ -53,23 +52,21 @@ class ImageInput:
 
 
 class BaseVisionLLM(ABC):
-    """Abstract base class for Vision LLM providers.
-    
-    Vision LLMs accept both text and image inputs, enabling multimodal
-    understanding tasks such as image captioning, visual question answering,
-    and document analysis with embedded images.
-    
-    All Vision LLM implementations must inherit from this class and implement
-    the chat_with_image() method. This ensures consistent interface across
-    different providers (Azure Vision, Ollama Vision, etc.).
-    
-    Design Principles Applied:
-    - Pluggable: Subclasses can be swapped without changing upstream code.
-    - Observable: Accepts optional TraceContext for observability integration.
-    - Config-Driven: Instances are created via factory based on settings.
-    - Interface Segregation: Minimal interface focused on multimodal input.
-    - Extension Point: Image preprocessing (compression, format conversion) can be
-      added in subclasses without changing the base interface.
+    """Vision LLM 服务提供方的抽象基类（父类）。
+
+    Vision LLM 可同时接收文本和图片输入，从而支持图像描述、
+    视觉问答、含内嵌图片的文档分析等多模态理解任务。
+
+    所有 Vision LLM 实现都必须继承本类，并实现 chat_with_image() 方法。
+    这样可以保证不同提供方（Azure Vision、Ollama Vision 等）的接口一致。
+
+    应用的设计原则：
+    - 可插拔（Pluggable）：子类可以替换，而不用改动上层代码。
+    - 可观测（Observable）：接受可选的 TraceContext，用于接入可观测性。
+    - 配置驱动（Config-Driven）：通过工厂根据配置创建实例。
+    - 接口隔离（Interface Segregation）：仅聚焦多模态输入的最小接口。
+    - 扩展点（Extension Point）：图片预处理（压缩、格式转换）可在子类中
+      添加，无需改动基类接口。
     """
     
     @abstractmethod
@@ -81,26 +78,26 @@ class BaseVisionLLM(ABC):
         trace: Optional[Any] = None,
         **kwargs: Any,
     ) -> ChatResponse:
-        """Generate a response based on text prompt and image input.
-        
-        This method enables multimodal interactions where the model can "see"
-        the image and respond to questions or generate descriptions about it.
-        
+        """根据文本提示和图片输入生成响应。
+
+        本方法支持多模态交互，模型可以"看"图片，
+        并针对图片回答问题或生成描述。
+
         Args:
-            text: The text prompt or question about the image.
-            image: The image input (path, bytes, or base64).
-            messages: Optional conversation history for context. If provided,
-                the text + image will be appended as the latest user message.
-            trace: Optional TraceContext for observability (reserved for Stage F).
-            **kwargs: Provider-specific parameters (temperature, max_tokens, etc.).
-        
+            text: 关于图片的文本提示或问题。
+            image: 图片输入（路径、字节或 base64）。
+            messages: 可选的对话历史，用于提供上下文。若提供，
+                文本 + 图片会作为最新的一条 user 消息追加。
+            trace: 可选的 TraceContext，用于可观测性（为 Stage F 预留）。
+            **kwargs: 各提供方专属参数（temperature、max_tokens 等）。
+
         Returns:
-            ChatResponse containing the generated text and metadata.
-        
+            包含生成文本和元数据的 ChatResponse。
+
         Raises:
-            ValueError: If text is empty or image input is invalid.
-            RuntimeError: If the Vision LLM provider call fails.
-        
+            ValueError: 当 text 为空或图片输入无效时。
+            RuntimeError: 当 Vision LLM 提供方调用失败时。
+
         Example:
             >>> image = ImageInput(path="diagram.png")
             >>> response = vision_llm.chat_with_image(
@@ -111,60 +108,59 @@ class BaseVisionLLM(ABC):
             "This diagram shows a system architecture with..."
         """
         pass
-    
+
     def validate_text(self, text: str) -> None:
-        """Validate text prompt.
-        
+        """校验文本提示。
+
         Args:
-            text: Text prompt to validate.
-        
+            text: 待校验的文本提示。
+
         Raises:
-            ValueError: If text is empty or not a string.
+            ValueError: 当 text 为空或不是字符串时。
         """
         if not isinstance(text, str):
             raise ValueError(f"Text must be a string, got {type(text).__name__}")
         if not text or not text.strip():
             raise ValueError("Text prompt cannot be empty")
-    
+
     def validate_image(self, image: ImageInput) -> None:
-        """Validate image input.
-        
+        """校验图片输入。
+
         Args:
-            image: Image input to validate.
-        
+            image: 待校验的图片输入。
+
         Raises:
-            ValueError: If image is not an ImageInput instance.
+            ValueError: 当 image 不是 ImageInput 实例时。
         """
         if not isinstance(image, ImageInput):
             raise ValueError(
                 f"Image must be an ImageInput instance, got {type(image).__name__}"
             )
-    
+
     def preprocess_image(
         self,
         image: ImageInput,
         max_size: Optional[tuple[int, int]] = None,
     ) -> ImageInput:
-        """Preprocess image before sending to Vision LLM.
-        
-        This method provides an extension point for image preprocessing such as:
-        - Resizing to meet provider size limits
-        - Format conversion (e.g., PNG to JPEG)
-        - Compression to reduce payload size
-        
-        Default implementation returns the image unchanged. Subclasses can
-        override to add provider-specific preprocessing.
-        
+        """在发送给 Vision LLM 之前对图片做预处理。
+
+        本方法提供图片预处理的扩展点，例如：
+        - 调整尺寸以满足提供方的尺寸限制
+        - 格式转换（例如 PNG 转 JPEG）
+        - 压缩以减小负载大小
+
+        默认实现直接返回原图，不做任何处理。子类可以重写，
+        添加提供方专属的预处理逻辑。
+
         Args:
-            image: The input image to preprocess.
-            max_size: Optional maximum dimensions (width, height) in pixels.
-        
+            image: 待预处理的输入图片。
+            max_size: 可选的最大尺寸（宽、高），单位为像素。
+
         Returns:
-            Preprocessed ImageInput (may be the same instance if no changes needed).
-        
+            预处理后的 ImageInput（若无需改动，可能是同一实例）。
+
         Note:
-            Preprocessing should be idempotent - calling it multiple times
-            with the same input should produce the same output.
+            预处理应当是幂等的——对同一输入多次调用，结果应保持一致。
         """
-        # Default: no preprocessing
+        # 默认：不做预处理
         return image

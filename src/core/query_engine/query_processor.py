@@ -22,7 +22,7 @@ import jieba
 from src.core.types import ProcessedQuery
 
 
-# Default stopwords for Chinese
+# 中文默认停用词
 CHINESE_STOPWORDS: Set[str] = {
     # 疑问词
     "如何", "怎么", "怎样", "什么", "哪个", "哪些", "为什么", "为何",
@@ -46,34 +46,34 @@ CHINESE_STOPWORDS: Set[str] = {
     "？", "。", "！", "，", "、",
 }
 
-# Default stopwords for English
+# 英文默认停用词
 ENGLISH_STOPWORDS: Set[str] = {
-    # Articles
+    # 冠词
     "a", "an", "the",
-    # Prepositions
+    # 介词
     "in", "on", "at", "to", "for", "of", "with", "by", "from", "as",
     "into", "about", "through", "between", "after", "before",
-    # Conjunctions
+    # 连词
     "and", "or", "but", "if", "then", "because", "while", "although",
-    # Pronouns
+    # 代词
     "i", "you", "he", "she", "it", "we", "they", "this", "that",
     "these", "those", "what", "which", "who", "whom", "whose",
-    # Auxiliary verbs
+    # 助动词
     "is", "am", "are", "was", "were", "be", "been", "being",
     "have", "has", "had", "do", "does", "did", "will", "would",
     "could", "should", "may", "might", "must", "can",
-    # Common verbs
+    # 常用动词
     "get", "use", "make",
-    # Question words
+    # 疑问词
     "how", "why", "when", "where",
-    # Others
+    # 其他
     "not", "no", "yes", "so", "very", "just", "also", "too",
 }
 
-# Combined default stopwords
+# 合并后的默认停用词
 DEFAULT_STOPWORDS: Set[str] = CHINESE_STOPWORDS | ENGLISH_STOPWORDS
 
-# Pattern for filter syntax: key:value
+# 过滤器语法模式：key:value
 FILTER_PATTERN: Pattern = re.compile(r'(\w+):([^\s]+)')
 
 
@@ -139,7 +139,7 @@ class QueryProcessor:
         # 用jieba库分词,token为干净的无标点符号的列表
         tokens = self._tokenize(query_without_filters)
         
-        # Filter stopwords and apply constraints
+        # 过滤停用词并应用约束
         keywords = self._filter_keywords(tokens)
         
         return ProcessedQuery(
@@ -156,7 +156,7 @@ class QueryProcessor:
 
         返回规范化后的查询字符串。
         """
-        # Strip and normalize whitespace
+        # 去除首尾空白并规范化空白字符
         normalized = " ".join(query.split())
         return normalized
     
@@ -170,10 +170,10 @@ class QueryProcessor:
         
         filters: Dict[str, Any] = {}
         
-        # Find all filter patterns
+        # 找出所有过滤器模式
         matches = FILTER_PATTERN.findall(query)
         for key, value in matches:
-            # Support common filter keys
+            # 支持常见的过滤器键
             key_lower = key.lower()
             if key_lower in ("collection", "col", "c"):
                 filters["collection"] = value
@@ -182,15 +182,15 @@ class QueryProcessor:
             elif key_lower in ("source", "src", "s"):
                 filters["source_path"] = value
             elif key_lower in ("tag", "tags"):
-                # Tags can be comma-separated
+                # 标签可以用逗号分隔
                 if "tags" not in filters:
                     filters["tags"] = []
                 filters["tags"].extend(value.split(","))
             else:
-                # Generic filter
+                # 通用过滤器
                 filters[key] = value
-        
-        # Remove filter patterns from query
+
+        # 从查询中移除过滤器模式
         query_without_filters = FILTER_PATTERN.sub("", query).strip()
         query_without_filters = " ".join(query_without_filters.split())
         
@@ -206,14 +206,14 @@ class QueryProcessor:
         """
         tokens: List[str] = []
 
-        # Use jieba to segment (handles Chinese + keeps English intact)
+        # 用 jieba 分词（处理中文 + 保留英文完整）
         raw_tokens = jieba.lcut(text)
 
         for token in raw_tokens:
             token = token.strip()
             if not token:
                 continue
-            # Skip pure punctuation / whitespace
+            # 跳过纯标点 / 空白
             if re.fullmatch(r'[\s\W]+', token, re.UNICODE):
                 continue
             tokens.append(token)
@@ -235,26 +235,26 @@ class QueryProcessor:
         keywords: List[str] = []
         
         for token in tokens:
-            # Normalize for comparison
+            # 规范化用于比较
             token_lower = token.lower()
-            
-            # Skip if already seen (case-insensitive dedup)
+
+            # 已见过则跳过（不区分大小写去重）
             if token_lower in seen:
                 continue
-            
-            # Skip stopwords (check both original and lowercase)
+
+            # 跳过停用词（同时检查原始和大小写）
             if token in self.config.stopwords or token_lower in self.config.stopwords:
                 continue
-            
-            # Skip if too short
+
+            # 太短则跳过
             if len(token) < self.config.min_keyword_length:
                 continue
-            
-            # Add keyword (preserve original case)
+
+            # 添加关键词（保留原始大小写）
             seen.add(token_lower)
             keywords.append(token)
-            
-            # Stop if we have enough
+
+            # 已足够则停止
             if len(keywords) >= self.config.max_keywords:
                 break
         

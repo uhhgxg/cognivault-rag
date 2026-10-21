@@ -1,8 +1,8 @@
-"""Source-aware evaluator using document-level ground truth.
+"""基于来源的评估器，使用文档级别的标准答案。
 
-Evaluates retrieval quality by checking whether retrieved chunks come from
-the expected source documents (expected_sources in test set), avoiding
-circular dependency on chunk_ids.
+通过检查检索到的切块是否来自期望的来源文档
+（测试集里的 expected_sources）来评估检索质量，
+避免对 chunk_ids 的循环依赖。
 """
 
 from __future__ import annotations
@@ -13,12 +13,12 @@ from src.libs.evaluator.base_evaluator import BaseEvaluator
 
 
 class SourceEvaluator(BaseEvaluator):
-    """Evaluator based on expected source document matching.
+    """基于期望来源文档匹配的评估器。
 
-    Metrics:
-    - source_hit_rate: binary, 1 if any retrieved chunk is from expected_sources
-    - source_mrr: reciprocal rank of first correct-source chunk
-    - source_coverage: fraction of expected_sources found in retrieved chunks
+    指标：
+    - source_hit_rate: 命中率（0 或 1），只要检索到的切块里有任意一个来自 expected_sources 就算 1
+    - source_mrr: 第一个正确来源切块的倒数排名（MRR）
+    - source_coverage: 期望来源中被检索到的占比
     """
 
     SUPPORTED_METRICS = {"source_hit_rate", "source_mrr", "source_coverage"}
@@ -59,7 +59,7 @@ class SourceEvaluator(BaseEvaluator):
         if not expected_sources:
             return {m: 0.0 for m in self.metrics}
 
-        # Extract source_path from each retrieved chunk
+        # 从每个检索到的切块中提取 source_path
         retrieved_sources = []
         for chunk in retrieved_chunks:
             source = self._extract_source(chunk)

@@ -1,7 +1,7 @@
-"""DashScope (阿里云百炼) Reranker implementation.
+"""基于 DashScope（阿里云百炼）的重排序器实现。
 
-This module implements reranking using the DashScope API, supporting
-models such as qwen3-rerank and gte-rerank-v2.
+本模块使用 DashScope API 实现重排序，
+支持 qwen3-rerank、gte-rerank-v2 等模型。
 """
 
 from __future__ import annotations
@@ -17,16 +17,16 @@ logger = logging.getLogger(__name__)
 
 
 class DashScopeRerankError(RuntimeError):
-    """Raised when DashScope reranking fails."""
+    """当 DashScope 重排序失败时抛出。"""
 
 
 class DashScopeReranker(BaseReranker):
-    """DashScope API-based reranker for cloud reranking.
+    """基于 DashScope API 的重排序器，用于云端重排。
 
-    Uses the DashScope compatible rerank API endpoint:
+    使用 DashScope 兼容的 rerank 接口：
         POST https://dashscope.aliyuncs.com/compatible-api/v1/reranks
 
-    Supports text-only rerank models (e.g., qwen3-rerank).
+    支持纯文本重排模型（例如 qwen3-rerank）。
     """
 
     DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-api/v1/reranks"
@@ -40,17 +40,17 @@ class DashScopeReranker(BaseReranker):
         timeout: float = 30.0,
         **kwargs: Any,
     ) -> None:
-        """Initialize the DashScope Reranker.
+        """初始化 DashScope 重排序器。
 
-        Args:
-            settings: Application settings.
-            api_key: DashScope API key. If None, reads from OPENAI_API_KEY
-                or DASHSCOPE_API_KEY env var.
-            model: Model name (e.g., "qwen3-rerank"). If None, reads from
-                settings.rerank.model.
-            base_url: API endpoint override.
-            timeout: HTTP request timeout in seconds.
-            **kwargs: Additional parameters.
+        参数：
+            settings: 应用配置。
+            api_key: DashScope 的 API key。如果为 None，就从 OPENAI_API_KEY
+                或 DASHSCOPE_API_KEY 环境变量读取。
+            model: 模型名（例如 "qwen3-rerank"）。如果为 None，就从
+                settings.rerank.model 读取。
+            base_url: 自定义的 API 接口地址。
+            timeout: HTTP 请求超时时间（秒）。
+            **kwargs: 其他参数。
         """
         self.settings = settings
         self.timeout = timeout
@@ -59,14 +59,14 @@ class DashScopeReranker(BaseReranker):
         # API key
         self.api_key = api_key or self._resolve_api_key()
 
-        # Model name
+        # 模型名
         self.model = model or self._resolve_model_name(settings)
 
-        # Base URL
+        # 接口地址
         self.base_url = base_url or self.DEFAULT_BASE_URL
 
     def _resolve_api_key(self) -> str:
-        """Resolve API key from environment."""
+        """从环境变量解析 API key。"""
         key = os.getenv("DASHSCOPE_API_KEY") or os.getenv("OPENAI_API_KEY")
         if not key:
             raise DashScopeRerankError(
@@ -75,7 +75,7 @@ class DashScopeReranker(BaseReranker):
         return key
 
     def _resolve_model_name(self, settings: Any) -> str:
-        """Extract model name from settings."""
+        """从 settings 中提取模型名。"""
         try:
             model_name = settings.rerank.model
             if not model_name or not isinstance(model_name, str):
@@ -94,21 +94,21 @@ class DashScopeReranker(BaseReranker):
         trace: Optional[Any] = None,
         **kwargs: Any,
     ) -> List[Dict[str, Any]]:
-        """Rerank candidates using DashScope API.
+        """使用 DashScope API 重排候选项。
 
-        Args:
-            query: The user query string.
-            candidates: List of candidate records. Each must contain 'text' or 'content'.
-            trace: Optional TraceContext for observability.
-            **kwargs: Additional parameters (top_k, etc.).
+        参数：
+            query: 用户的查询字符串。
+            candidates: 候选记录列表。每条必须包含 'text' 或 'content'。
+            trace: 可选的 TraceContext，用于可观测性。
+            **kwargs: 额外参数（top_k 等）。
 
-        Returns:
-            Reranked list of candidates ordered by relevance score (descending).
-            Each candidate includes a 'rerank_score' field.
+        返回：
+            重排后的候选列表，按相关性得分从高到低排序。
+            每个候选项会带上 'rerank_score' 字段。
 
-        Raises:
-            ValueError: If query or candidates are invalid.
-            DashScopeRerankError: If API call fails.
+        抛出：
+            ValueError: 如果 query 或 candidates 不合法。
+            DashScopeRerankError: 如果 API 调用失败。
         """
         self.validate_query(query)
         self.validate_candidates(candidates)
@@ -118,7 +118,7 @@ class DashScopeReranker(BaseReranker):
 
         top_k = kwargs.get("top_k", len(candidates))
 
-        # Extract document texts
+        # 抽取文档文本
         documents = []
         for candidate in candidates:
             text = candidate.get("text") or candidate.get("content", "")
@@ -126,10 +126,10 @@ class DashScopeReranker(BaseReranker):
                 text = str(text)
             documents.append(text)
 
-        # Call API
+        # 调用 API
         response_data = self._call_api(query, documents, top_k)
 
-        # Map results back to candidates
+        # 把结果映射回候选项
         reranked = self._map_results(response_data, candidates, top_k)
 
         if trace:
@@ -143,18 +143,18 @@ class DashScopeReranker(BaseReranker):
         return reranked
 
     def _call_api(self, query: str, documents: List[str], top_n: int) -> Dict[str, Any]:
-        """Call DashScope rerank API.
+        """调用 DashScope 的 rerank 接口。
 
-        Args:
-            query: Query string.
-            documents: List of document texts.
-            top_n: Number of top results to return.
+        参数：
+            query: 查询字符串。
+            documents: 文档文本列表。
+            top_n: 要返回前多少条结果。
 
-        Returns:
-            Parsed JSON response.
+        返回：
+            解析后的 JSON 响应。
 
-        Raises:
-            DashScopeRerankError: If the API call fails.
+        抛出：
+            DashScopeRerankError: 如果 API 调用失败。
         """
         payload = {
             "model": self.model,
@@ -176,7 +176,7 @@ class DashScopeReranker(BaseReranker):
                 "Install it with: pip install httpx"
             )
 
-        # Retry with exponential backoff for transient network errors
+        # 针对临时性网络错误，用指数退避策略重试
         max_retries = 3
         for attempt in range(max_retries):
             try:
@@ -212,15 +212,15 @@ class DashScopeReranker(BaseReranker):
         candidates: List[Dict[str, Any]],
         top_k: int,
     ) -> List[Dict[str, Any]]:
-        """Map API response results back to original candidates.
+        """把 API 返回的结果映射回原始候选项。
 
-        Args:
-            response_data: Parsed JSON from DashScope API.
-            candidates: Original candidate list.
-            top_k: Limit output size.
+        参数：
+            response_data: 从 DashScope API 解析出的 JSON。
+            candidates: 原始的候选列表。
+            top_k: 限制输出数量。
 
-        Returns:
-            Reranked candidates with 'rerank_score' field.
+        返回：
+            重排后的候选项，带 'rerank_score' 字段。
         """
         results = response_data.get("results", [])
         if not results:
@@ -240,7 +240,7 @@ class DashScopeReranker(BaseReranker):
             candidate_copy["rerank_score"] = float(score)
             reranked.append(candidate_copy)
 
-        # Sort by score descending (API usually returns in order, but be safe)
+        # 按得分从高到低排序（API 通常已排序，但保险起见再排一次）
         reranked.sort(key=lambda x: x.get("rerank_score", 0.0), reverse=True)
 
         return reranked

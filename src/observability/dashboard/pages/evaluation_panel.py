@@ -1,10 +1,10 @@
-"""Evaluation Panel page – run evaluations and view metrics.
+"""Evaluation Panel 页面 – 运行评估并查看指标。
 
-Layout:
-1. Configuration section: select evaluator backend, golden test set, top_k
-2. Run button with progress indicator
-3. Results section: aggregate metrics, per-query detail table
-4. Optional: historical evaluation results comparison
+布局：
+1. 配置区域：选择评估器后端、黄金测试集、top_k
+2. 运行按钮，带进度指示
+3. 结果区域：汇总指标、每条查询详情表
+4. 可选：历史评估结果对比
 """
 
 from __future__ import annotations
@@ -19,14 +19,14 @@ import streamlit as st
 
 logger = logging.getLogger(__name__)
 
-# Default golden test set location
+# 默认的黄金测试集位置
 DEFAULT_GOLDEN_SET = Path("tests/fixtures/golden_test_set.json")
-# Evaluation results history file
+# 评估结果历史文件
 EVAL_HISTORY_PATH = Path("logs/eval_history.jsonl")
 
 
 def render() -> None:
-    """Render the Evaluation Panel page."""
+    """渲染 Evaluation Panel 页面。"""
     st.header("📏 Evaluation Panel")
     st.markdown(
         "Run evaluation against a **golden test set** to measure retrieval "
@@ -34,7 +34,7 @@ def render() -> None:
         "aggregate metrics."
     )
 
-    # ── Configuration Section ──────────────────────────────────────
+    # ── 配置区域 ──────────────────────────────────────
     st.subheader("⚙️ Configuration")
 
     col1, col2, col3 = st.columns(3)
@@ -48,7 +48,7 @@ def render() -> None:
             help="Select which evaluator backend to use.",
         )
 
-    # Show info/warning based on selected backend
+    # 根据所选后端显示提示/警告信息
     if backend in ("custom", "composite"):
         st.info(
             "ℹ️ **Custom Evaluator** 尚未完成数据集准备，当前仅为预留接口。"
@@ -76,7 +76,7 @@ def render() -> None:
             help="Limit retrieval to a specific collection.",
         )
 
-    # Golden test set file selection
+    # 黄金测试集文件选择
     golden_path_str = st.text_input(
         "Golden Test Set Path",
         value=str(DEFAULT_GOLDEN_SET),
@@ -85,7 +85,7 @@ def render() -> None:
     )
     golden_path = Path(golden_path_str)
 
-    # Validate golden set exists
+    # 校验黄金测试集是否存在
     if not golden_path.exists():
         st.warning(
             f"⚠️ **Golden test set not found:** `{golden_path}`. "
@@ -93,7 +93,7 @@ def render() -> None:
             "See `tests/fixtures/golden_test_set.json` for the format."
         )
 
-    # ── Answer Input Section (for Ragas) ───────────────────────────
+    # ── 回答输入区域（用于 Ragas） ───────────────────────────
     user_answers: Dict[int, str] = {}
     if backend == "ragas" and golden_path.exists():
         st.divider()
@@ -125,7 +125,7 @@ def render() -> None:
                 if user_ans.strip():
                     user_answers[tc_idx] = user_ans.strip()
 
-            # Show fill status
+            # 显示填写状态
             filled = len(user_answers)
             total = len(_test_cases)
             if filled < total:
@@ -135,7 +135,7 @@ def render() -> None:
         except Exception as exc:
             st.warning(f"无法加载测试用例预览: {exc}")
 
-    # ── Run Evaluation ─────────────────────────────────────────────
+    # ── 运行评估 ─────────────────────────────────────────────
     st.divider()
 
     run_clicked = st.button(
@@ -154,7 +154,7 @@ def render() -> None:
             user_answers=user_answers if user_answers else None,
         )
 
-    # ── Historical Results ─────────────────────────────────────────
+    # ── 历史结果 ─────────────────────────────────────────
     st.divider()
     _render_history()
 
@@ -166,11 +166,10 @@ def _run_evaluation(
     collection: Optional[str],
     user_answers: Optional[Dict[int, str]] = None,
 ) -> None:
-    """Execute an evaluation run and display results.
+    """执行一次评估运行并展示结果。
 
-    Attempts to load the evaluator, run the golden test set, and
-    display aggregate + per-query metrics.  Falls back to a graceful
-    error message on failure.
+    会尝试加载评估器、运行黄金测试集，并展示汇总指标和每条查询的指标。
+    失败时回退为友好的错误提示。
     """
     with st.spinner("Loading evaluator and running evaluation…"):
         try:
@@ -186,13 +185,13 @@ def _run_evaluation(
             logger.exception("Evaluation failed")
             return
 
-    # ── Display results ────────────────────────────────────────────
+    # ── 展示结果 ────────────────────────────────────────────
     st.success("✅ Evaluation complete!")
 
     _render_aggregate_metrics(report_dict)
     _render_query_details(report_dict)
 
-    # Save to history
+    # 保存到历史记录
     _save_to_history(report_dict)
 
 
@@ -203,10 +202,9 @@ def _execute_evaluation(
     collection: Optional[str],
     user_answers: Optional[Dict[int, str]] = None,
 ) -> Dict[str, Any]:
-    """Run the evaluation pipeline and return the report dict.
+    """运行评估流程并返回报告字典。
 
-    This function imports heavy dependencies lazily to keep the
-    dashboard responsive when the page is not used.
+    这个函数采用懒加载方式导入较重的依赖，让仪表盘在未使用本页时保持响应迅速。
     """
     from dataclasses import replace as dc_replace
 
@@ -216,24 +214,24 @@ def _execute_evaluation(
 
     settings = load_settings()
 
-    # Override evaluator provider from UI selection — build a new full
-    # Settings object so that RagasEvaluator can still access .llm / .embedding.
+    # 用界面选择覆盖评估器 provider —— 构建一个新的完整 Settings 对象，
+    # 这样 RagasEvaluator 仍能访问 .llm / .embedding。
     eval_settings = settings.evaluation
     overridden_eval = type(eval_settings)(
         enabled=True,
         provider=backend,
         metrics=eval_settings.metrics if hasattr(eval_settings, "metrics") else [],
     )
-    # Replace only the evaluation sub-config in the full settings
+    # 只替换完整 settings 中的评估子配置
     settings_with_override = dc_replace(settings, evaluation=overridden_eval)
 
     evaluator = EvaluatorFactory.create(settings_with_override)
 
-    # Try to create HybridSearch (optional – works without if not configured)
+    # 尝试创建 HybridSearch（可选 —— 若未配置也可在没有它的情况下运行）
     target_collection = collection or "default"
     hybrid_search = _try_create_hybrid_search(settings, target_collection)
 
-    # Create reranker if enabled
+    # 若启用则创建重排器（reranker）
     reranker = None
     try:
         from src.core.query_engine.reranker import create_core_reranker
@@ -243,8 +241,8 @@ def _execute_evaluation(
     except Exception as exc:
         logger.warning("Could not create reranker: %s", exc)
 
-    # Build answer_override map: index → user-provided answer text
-    # EvalRunner will use these instead of auto-generating from chunks.
+    # 构建 answer_override 映射：索引 → 用户提供的回答文本
+    # EvalRunner 会用这些回答，而不是从片段自动拼接生成。
     runner = EvalRunner(
         settings=settings,
         hybrid_search=hybrid_search,
@@ -263,10 +261,9 @@ def _execute_evaluation(
 
 
 def _try_create_hybrid_search(settings: Any, collection: str = "default") -> Any:
-    """Attempt to create a HybridSearch instance.
+    """尝试创建一个 HybridSearch 实例。
 
-    Returns None if required dependencies are not available
-    (e.g., no indexed data).
+    如果所需依赖不可用（例如没有索引数据），则返回 None。
     """
     try:
         from src.core.query_engine.query_processor import QueryProcessor
@@ -307,7 +304,7 @@ def _try_create_hybrid_search(settings: Any, collection: str = "default") -> Any
 
 
 def _render_aggregate_metrics(report: Dict[str, Any]) -> None:
-    """Display aggregate metrics as metric cards."""
+    """以指标卡片形式展示汇总指标。"""
     st.subheader("📊 Aggregate Metrics")
 
     agg = report.get("aggregate_metrics", {})
@@ -332,7 +329,7 @@ def _render_aggregate_metrics(report: Dict[str, Any]) -> None:
 
 
 def _render_query_details(report: Dict[str, Any]) -> None:
-    """Display per-query evaluation results in an expandable table."""
+    """在可展开表格中展示每条查询的评估结果。"""
     st.subheader("🔍 Per-Query Details")
 
     query_results = report.get("query_results", [])
@@ -345,7 +342,7 @@ def _render_query_details(report: Dict[str, Any]) -> None:
         elapsed = qr.get("elapsed_ms", 0)
         metrics = qr.get("metrics", {})
 
-        # Build metric summary for the expander label
+        # 为展开器标题构建指标摘要
         metric_summary = " · ".join(
             f"{k}: {v:.3f}" for k, v in sorted(metrics.items())
         )
@@ -356,20 +353,20 @@ def _render_query_details(report: Dict[str, Any]) -> None:
             f"**Q{idx + 1}**: {query[:80]} — {elapsed:.0f} ms — {metric_summary}",
             expanded=False,
         ):
-            # Metrics
+            # 指标
             if metrics:
                 mcols = st.columns(min(len(metrics), 4))
                 for midx, (mname, mval) in enumerate(sorted(metrics.items())):
                     with mcols[midx % len(mcols)]:
                         st.metric(mname, f"{mval:.4f}")
 
-            # Retrieved chunks
+            # 检索到的片段
             chunks = qr.get("retrieved_chunk_ids", [])
             if chunks:
                 st.markdown(f"**Retrieved Chunks** ({len(chunks)}):")
                 st.code(", ".join(chunks[:20]), language=None)
 
-            # Generated answer
+            # 生成的回答
             answer = qr.get("generated_answer")
             if answer:
                 st.markdown("**Generated Answer:**")
@@ -377,7 +374,7 @@ def _render_query_details(report: Dict[str, Any]) -> None:
 
 
 def _render_history() -> None:
-    """Display historical evaluation results for comparison."""
+    """展示历史评估结果用于对比。"""
     st.subheader("📈 Evaluation History")
 
     history = _load_history()
@@ -389,9 +386,9 @@ def _render_history() -> None:
         )
         return
 
-    # Show recent runs as a table
+    # 将最近的运行展示为表格
     rows = []
-    for entry in history[-10:]:  # last 10 runs
+    for entry in history[-10:]:  # 最近 10 次运行
         rows.append(
             {
                 "Timestamp": entry.get("timestamp", "—"),
@@ -409,7 +406,7 @@ def _render_history() -> None:
 
 
 def _save_to_history(report: Dict[str, Any]) -> None:
-    """Append an evaluation report to the history file."""
+    """将一份评估报告追加到历史记录文件。"""
     try:
         EVAL_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
         entry = {
@@ -423,7 +420,7 @@ def _save_to_history(report: Dict[str, Any]) -> None:
 
 
 def _load_history() -> List[Dict[str, Any]]:
-    """Load evaluation history from JSONL file."""
+    """从 JSONL 文件加载评估历史记录。"""
     if not EVAL_HISTORY_PATH.exists():
         return []
 
@@ -444,10 +441,9 @@ def _load_history() -> List[Dict[str, Any]]:
 
 
 def _load_golden_queries(golden_path: Path) -> List[Dict[str, Any]]:
-    """Load test cases from golden test set for display in the UI.
+    """从黄金测试集加载测试用例，用于在界面中展示。
 
-    Returns list of dicts with at least 'query' and optionally
-    'reference_answer' keys.
+    返回字典列表，每个字典至少包含 'query' 键，可选包含 'reference_answer' 键。
     """
     with golden_path.open("r", encoding="utf-8") as f:
         data = json.load(f)

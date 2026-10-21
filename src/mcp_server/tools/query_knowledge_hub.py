@@ -1,15 +1,15 @@
-"""MCP Tool: query_knowledge_hub
+"""MCP 工具：query_knowledge_hub
 
-This tool provides knowledge retrieval capabilities through the MCP protocol.
-It combines HybridSearch (Dense + Sparse + RRF Fusion) with optional Reranking
-to find relevant documents and return formatted results with citations.
+本工具通过 MCP 协议提供知识检索能力。
+它结合混合检索（Dense + Sparse + RRF 融合）与可选的重排序，
+找出相关文档并返回带引用的格式化结果。
 
-Usage via MCP:
-    Tool name: query_knowledge_hub
-    Input schema:
-        - query (string, required): The search query
-        - top_k (integer, optional): Number of results to return (default: 5)
-        - collection (string, optional): Limit search to specific collection
+通过 MCP 使用：
+    工具名：query_knowledge_hub
+    输入 schema：
+        - query（字符串，必填）：搜索查询
+        - top_k（整数，可选）：返回结果数量（默认 5）
+        - collection（字符串，可选）：限定在某个集合内搜索
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# Tool metadata
+# 工具元数据
 TOOL_NAME = "query_knowledge_hub"
 TOOL_DESCRIPTION = """Search the knowledge base for relevant documents.
 
@@ -71,13 +71,13 @@ TOOL_INPUT_SCHEMA: Dict[str, Any] = {
 
 @dataclass
 class QueryKnowledgeHubConfig:
-    """Configuration for query_knowledge_hub tool.
-    
-    Attributes:
-        default_top_k: Default number of results if not specified
-        max_top_k: Maximum allowed top_k value
-        default_collection: Default collection if not specified
-        enable_rerank: Whether to apply reranking
+    """query_knowledge_hub 工具的配置。
+
+    属性：
+        default_top_k: 未指定时默认返回的结果数
+        max_top_k: 允许的最大 top_k 值
+        default_collection: 未指定时的默认集合
+        enable_rerank: 是否启用重排序
     """
     default_top_k: int = 5
     max_top_k: int = 20
@@ -86,17 +86,17 @@ class QueryKnowledgeHubConfig:
 
 
 class QueryKnowledgeHubTool:
-    """MCP Tool for knowledge base queries.
-    
-    This class encapsulates the query_knowledge_hub tool logic,
-    coordinating HybridSearch and Reranker to produce formatted results.
-    
-    Design Principles:
-    - Lazy initialization: Components created on first use
-    - Error resilience: Graceful handling of search/rerank failures
-    - Configurable: All parameters from settings.yaml
-    
-    Example:
+    """用于知识库查询的 MCP 工具。
+
+    这个类封装了 query_knowledge_hub 工具的逻辑，
+    协调 HybridSearch 和 Reranker 来生成格式化结果。
+
+    设计原则：
+    - 懒加载：组件在第一次使用时才创建
+    - 容错性：搜索/重排序失败时优雅处理
+    - 可配置：所有参数来自 settings.yaml
+
+    示例：
         >>> tool = QueryKnowledgeHubTool(settings)
         >>> result = await tool.execute(query="Azure 配置", top_k=5)
         >>> print(result.content)
@@ -110,14 +110,14 @@ class QueryKnowledgeHubTool:
         reranker: Optional[CoreReranker] = None,
         response_builder: Optional[ResponseBuilder] = None,
     ) -> None:
-        """Initialize QueryKnowledgeHubTool.
-        
-        Args:
-            settings: Application settings. If None, loaded from default path.
-            config: Tool configuration. If None, uses defaults.
-            hybrid_search: Optional pre-configured HybridSearch instance.
-            reranker: Optional pre-configured CoreReranker instance.
-            response_builder: Optional pre-configured ResponseBuilder instance.
+        """初始化 QueryKnowledgeHubTool。
+
+        参数：
+            settings: 应用配置。为 None 时从默认路径加载。
+            config: 工具配置。为 None 时用默认值。
+            hybrid_search: 可选的预配置 HybridSearch 实例。
+            reranker: 可选的预配置 CoreReranker 实例。
+            response_builder: 可选的预配置 ResponseBuilder 实例。
         """
         self._settings = settings
         self.config = config or QueryKnowledgeHubConfig()
@@ -125,43 +125,42 @@ class QueryKnowledgeHubTool:
         self._reranker = reranker
         self._embedding_client = None
         self._response_builder = response_builder or ResponseBuilder()
-        
-        # Track initialization state
+
+        # 跟踪初始化状态
         self._initialized = False
         self._current_collection: Optional[str] = None
-    
+
     @property
     def settings(self) -> Settings:
-        """Get settings, loading if necessary."""
+        """获取配置，必要时加载。"""
         if self._settings is None:
             self._settings = load_settings()
         return self._settings
     
     def _ensure_initialized(self, collection: str) -> None:
-        """Ensure search components are initialized for the given collection.
-        
-        Caching strategy (balances speed vs freshness):
-        - **Fully cached** (stateless, never go stale): embedding client,
-          reranker, query processor, settings.
-        - **Cached until collection changes**: vector store (ChromaDB
-          PersistentClient reads from SQLite — sees data written by other
-          processes), dense retriever, hybrid search.
-        - **Auto-refreshes on every query**: BM25 sparse index — the
-          ``SparseRetriever._ensure_index_loaded()`` always reloads from
-          disk, so the cached SparseRetriever object is fine.
-        
-        Only when *collection* changes do we tear down and rebuild.
-        
-        Args:
-            collection: Target collection name.
+        """确保针对给定集合，搜索组件已初始化。
+
+        缓存策略（在速度和新鲜度之间平衡）：
+        - **完全缓存**（无状态，不会过期）：embedding 客户端、
+          reranker、query processor、settings。
+        - **缓存到集合变化为止**：vector store（ChromaDB
+          PersistentClient 从 SQLite 读取 —— 能看到其他进程
+          写入的数据）、dense retriever、hybrid search。
+        - **每次查询自动刷新**：BM25 稀疏索引 ——
+          ``SparseRetriever._ensure_index_loaded()`` 每次都从磁盘重新加载，
+          所以缓存的 SparseRetriever 对象没问题。
+
+        只有 *collection* 变化时才会拆除重建。
+
+        参数：
+            collection: 目标集合名。
         """
-        # Always rebuild vector_store and retriever components so that
-        # data ingested by other processes (e.g. Dashboard) is visible
-        # immediately without requiring an MCP Server restart.
-        
+        # 总是重建 vector_store 和检索器组件，这样其他进程（比如 Dashboard）
+        # 写入的数据就能立刻看到，不用重启 MCP Server。
+
         logger.info(f"Initializing query components for collection: {collection}")
-        
-        # Import here to avoid circular imports and allow lazy loading
+
+        # 在这里导入，避免循环导入，并支持懒加载
         from src.core.query_engine.query_processor import QueryProcessor
         from src.core.query_engine.hybrid_search import create_hybrid_search
         from src.core.query_engine.dense_retriever import create_dense_retriever
@@ -170,32 +169,32 @@ class QueryKnowledgeHubTool:
         from src.ingestion.storage.bm25_indexer import BM25Indexer
         from src.libs.embedding.embedding_factory import EmbeddingFactory
         from src.libs.vector_store.vector_store_factory import VectorStoreFactory
-        
-        # === Fully cached components (stateless, never go stale) ===
+
+        # === 完全缓存的组件（无状态，不会过期） ===
         if self._embedding_client is None:
             self._embedding_client = EmbeddingFactory.create(self.settings)
-        
+
         if self._reranker is None:
             self._reranker = create_core_reranker(settings=self.settings)
-        
-        # === Rebuild for new collection ===
-        # ChromaDB PersistentClient uses SQLite under the hood —
-        # concurrent readers see committed writes from other processes
-        # (dashboard ingestion), so caching the client is safe.
+
+        # === 为新集合重建 ===
+        # ChromaDB PersistentClient 底层用的是 SQLite ——
+        # 并发读操作能看到其他进程（Dashboard 摄取）已提交的写入，
+        # 所以缓存这个客户端是安全的。
         vector_store = VectorStoreFactory.create(
             self.settings,
             collection_name=collection,
         )
-        
+
         dense_retriever = create_dense_retriever(
             settings=self.settings,
             embedding_client=self._embedding_client,
             vector_store=vector_store,
         )
-        
-        # BM25Indexer just holds the index dir path; the SparseRetriever
-        # calls _ensure_index_loaded() on every search, which always
-        # reloads from disk — so it picks up dashboard-written data.
+
+        # BM25Indexer 只保存索引目录路径；SparseRetriever
+        # 每次搜索都会调用 _ensure_index_loaded()，它总是从磁盘重新加载
+        # —— 所以能读到 Dashboard 写入的数据。
         bm25_indexer = BM25Indexer(index_dir=str(resolve_path(f"data/db/bm25/{collection}")))
         sparse_retriever = create_sparse_retriever(
             settings=self.settings,
@@ -222,24 +221,24 @@ class QueryKnowledgeHubTool:
         top_k: Optional[int] = None,
         collection: Optional[str] = None,
     ) -> MCPToolResponse:
-        """Execute the query_knowledge_hub tool.
-        
-        Args:
-            query: Search query string.
-            top_k: Maximum results to return.
-            collection: Target collection name.
-            
-        Returns:
-            MCPToolResponse with formatted content and citations.
-            
-        Raises:
-            ValueError: If query is empty or invalid.
+        """执行 query_knowledge_hub 工具。
+
+        参数：
+            query: 搜索查询字符串。
+            top_k: 最多返回的结果数。
+            collection: 目标集合名。
+
+        返回：
+            带格式化内容和引用的 MCPToolResponse。
+
+        可能抛出：
+            ValueError: 查询为空或无效时抛出。
         """
-        # Validate query
+        # 校验查询
         if not query or not query.strip():
             raise ValueError("Query cannot be empty")
-        
-        # Apply defaults
+
+        # 应用默认值
         effective_top_k = min(
             top_k or self.config.default_top_k,
             self.config.max_top_k
@@ -258,9 +257,9 @@ class QueryKnowledgeHubTool:
         trace.metadata["source"] = "mcp"
 
         try:
-            # Initialize components for collection
-            # Run blocking I/O (embedding API, ChromaDB, BM25) in a thread
-            # to avoid blocking the async event loop / MCP stdio transport
+            # 初始化该集合的组件
+            # 把阻塞式 I/O（embedding API、ChromaDB、BM25）放到线程里跑
+            # 避免阻塞异步事件循环 / MCP stdio 传输
             import time as _time
             _init_t0 = _time.monotonic()
             await asyncio.to_thread(self._ensure_initialized, effective_collection)
@@ -270,25 +269,25 @@ class QueryKnowledgeHubTool:
                 "cold_start": _init_elapsed > 500,  # >500ms ≈ cold
             }, elapsed_ms=_init_elapsed)
             
-            # Perform hybrid search (blocking: embedding API + DB queries)
+            # 执行混合检索（阻塞操作：embedding API + 数据库查询）
             results = await asyncio.to_thread(
                 self._perform_search, query, effective_top_k, trace,
             )
-            
-            # Apply reranking if enabled (may call LLM API)
+
+            # 如果启用了重排序就执行（可能会调用 LLM API）
             if self.config.enable_rerank and results:
                 results = await asyncio.to_thread(
                     self._apply_rerank, query, results, effective_top_k, trace,
                 )
-            
-            # Build response
+
+            # 构建响应
             response = self._response_builder.build(
                 results=results,
                 query=query,
                 collection=effective_collection,
             )
             
-            # Store final results in trace for dashboard display
+            # 把最终结果存入 trace，供 Dashboard 展示
             trace.metadata["final_results"] = [
                 {
                     "chunk_id": r.chunk_id,
@@ -311,7 +310,7 @@ class QueryKnowledgeHubTool:
         except Exception as e:
             logger.exception(f"query_knowledge_hub failed: {e}")
             TraceCollector().collect(trace)
-            # Return error response
+            # 返回错误响应
             return self._build_error_response(query, effective_collection, str(e))
     
     def _perform_search(
@@ -320,20 +319,20 @@ class QueryKnowledgeHubTool:
         top_k: int,
         trace: Optional[Any] = None,
     ) -> List[RetrievalResult]:
-        """Perform hybrid search.
-        
-        Args:
-            query: Search query.
-            top_k: Maximum results.
-            trace: Optional TraceContext for observability.
-            
-        Returns:
-            List of RetrievalResult.
+        """执行混合检索。
+
+        参数：
+            query: 搜索查询。
+            top_k: 最多返回的结果数。
+            trace: 可选的 TraceContext，用于可观测性。
+
+        返回：
+            RetrievalResult 列表。
         """
         if self._hybrid_search is None:
             raise RuntimeError("HybridSearch not initialized")
-        
-        # Use a larger initial retrieval for reranking
+
+        # 重排序时先取更多的初始结果
         initial_top_k = top_k * 2 if self.config.enable_rerank else top_k
         
         try:
@@ -356,16 +355,16 @@ class QueryKnowledgeHubTool:
         top_k: int,
         trace: Optional[Any] = None,
     ) -> List[RetrievalResult]:
-        """Apply reranking to search results.
-        
-        Args:
-            query: Original query.
-            results: Search results to rerank.
-            top_k: Final number of results.
-            trace: Optional TraceContext for observability.
-            
-        Returns:
-            Reranked results (or original if reranking fails).
+        """对搜索结果做重排序。
+
+        参数：
+            query: 原始查询。
+            results: 要重排序的搜索结果。
+            top_k: 最终返回的结果数。
+            trace: 可选的 TraceContext，用于可观测性。
+
+        返回：
+            重排序后的结果（重排序失败则返回原始顺序）。
         """
         if self._reranker is None or not self._reranker.is_enabled:
             return results[:top_k]
@@ -394,15 +393,15 @@ class QueryKnowledgeHubTool:
         collection: str,
         error_message: str,
     ) -> MCPToolResponse:
-        """Build error response.
-        
-        Args:
-            query: Original query.
-            collection: Target collection.
-            error_message: Error description.
-            
-        Returns:
-            MCPToolResponse indicating error.
+        """构建错误响应。
+
+        参数：
+            query: 原始查询。
+            collection: 目标集合。
+            error_message: 错误描述。
+
+        返回：
+            表示错误的 MCPToolResponse。
         """
         content = f"## 查询失败\n\n"
         content += f"查询: **{query}**\n"
@@ -425,18 +424,18 @@ class QueryKnowledgeHubTool:
         )
 
 
-# Module-level tool instance (lazy-initialized)
+# 模块级工具实例（懒加载初始化）
 _tool_instance: Optional[QueryKnowledgeHubTool] = None
 
 
 def get_tool_instance(settings: Optional[Settings] = None) -> QueryKnowledgeHubTool:
-    """Get or create the tool instance.
-    
-    Args:
-        settings: Optional settings to use for initialization.
-        
-    Returns:
-        QueryKnowledgeHubTool instance.
+    """获取或创建工具实例。
+
+    参数：
+        settings: 可选的初始化配置。
+
+    返回：
+        QueryKnowledgeHubTool 实例。
     """
     global _tool_instance
     if _tool_instance is None:
@@ -449,32 +448,32 @@ async def query_knowledge_hub_handler(
     top_k: int = 5,
     collection: Optional[str] = None,
 ) -> types.CallToolResult:
-    """Handler function for MCP tool registration.
-    
-    This function is registered with the ProtocolHandler and called
-    when the MCP client invokes the query_knowledge_hub tool.
-    
-    Supports multimodal responses - if search results contain images,
-    the response will include ImageContent blocks alongside TextContent.
-    
-    Args:
-        query: Search query string.
-        top_k: Maximum number of results.
-        collection: Optional collection name.
-        
-    Returns:
-        MCP CallToolResult with content blocks (text and optionally images).
+    """用于 MCP 工具注册的 handler 函数。
+
+    这个函数注册到 ProtocolHandler 上，MCP 客户端调用
+    query_knowledge_hub 工具时会触发它。
+
+    支持多模态响应 —— 如果搜索结果里有图片，
+    响应会同时包含 ImageContent 和 TextContent 块。
+
+    参数：
+        query: 搜索查询字符串。
+        top_k: 最多返回的结果数。
+        collection: 可选的集合名。
+
+    返回：
+        带内容块（文本，可能还有图片）的 MCP CallToolResult。
     """
     tool = get_tool_instance()
-    
+
     try:
         response = await tool.execute(
             query=query,
             top_k=top_k,
             collection=collection,
         )
-        
-        # Use to_mcp_content() which handles multimodal (text + images)
+
+        # 用 to_mcp_content() 处理多模态（文本 + 图片）
         content_blocks = response.to_mcp_content()
         
         return types.CallToolResult(
@@ -483,7 +482,7 @@ async def query_knowledge_hub_handler(
         )
         
     except ValueError as e:
-        # Invalid parameters
+        # 参数无效
         return types.CallToolResult(
             content=[
                 types.TextContent(
@@ -494,7 +493,7 @@ async def query_knowledge_hub_handler(
             isError=True,
         )
     except Exception as e:
-        # Internal error
+        # 内部错误
         logger.exception(f"query_knowledge_hub handler error: {e}")
         return types.CallToolResult(
             content=[
@@ -508,10 +507,10 @@ async def query_knowledge_hub_handler(
 
 
 def register_tool(protocol_handler) -> None:
-    """Register query_knowledge_hub tool with the protocol handler.
-    
-    Args:
-        protocol_handler: ProtocolHandler instance to register with.
+    """向协议处理器注册 query_knowledge_hub 工具。
+
+    参数：
+        protocol_handler: 要注册到的 ProtocolHandler 实例。
     """
     protocol_handler.register_tool(
         name=TOOL_NAME,

@@ -1,10 +1,10 @@
-"""Data Browser page – browse ingested documents, chunks, and images.
+"""Data Browser 页面 —— 浏览已入库的文档、片段和图片。
 
-Layout:
-1. Collection selector (sidebar)
-2. Document list with chunk counts
-3. Expandable document detail → chunk cards with text + metadata
-4. Image preview gallery
+布局：
+1. 集合选择器（侧边栏）
+2. 文档列表，显示片段数量
+3. 可展开的文档详情 → 片段卡片，包含文本和元数据
+4. 图片预览画廊
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from src.observability.dashboard.services.data_service import DataService
 
 
 def render() -> None:
-    """Render the Data Browser page."""
+    """渲染 Data Browser 页面。"""
     st.header("🔍 Data Browser")
 
     try:
@@ -26,7 +26,7 @@ def render() -> None:
         st.error(f"Failed to initialise DataService: {exc}")
         return
 
-    # ── Collection selector ────────────────────────────────────────
+    # ── 集合选择器 ────────────────────────────────────────
     collections = svc.list_collections()
     if "default" not in collections:
         collections.insert(0, "default")
@@ -38,7 +38,7 @@ def render() -> None:
     )
     coll_arg = collection if collection else None
 
-    # ── Danger zone: clear all data ────────────────────────────────
+    # ── 危险区域：清空所有数据 ────────────────────────────────
     st.divider()
     with st.expander("⚠️ Danger Zone", expanded=False):
         st.warning(
@@ -75,7 +75,7 @@ def render() -> None:
 
     st.divider()
 
-    # ── Document list ──────────────────────────────────────────────
+    # ── 文档列表 ──────────────────────────────────────────────
     try:
         docs = svc.list_documents(coll_arg)
     except Exception as exc:
@@ -96,7 +96,7 @@ def render() -> None:
         source_name = Path(doc["source_path"]).name
         label = f"📑 {source_name}  —  {doc['chunk_count']} chunks · {doc['image_count']} images"
         with st.expander(label, expanded=(len(docs) == 1)):
-            # ── Document metadata ──────────────────────────────────
+            # ── 文档元数据 ──────────────────────────────────
             col_a, col_b, col_c = st.columns(3)
             col_a.metric("Chunks", doc["chunk_count"])
             col_b.metric("Images", doc["image_count"])
@@ -109,7 +109,7 @@ def render() -> None:
 
             st.divider()
 
-            # ── Chunk cards ────────────────────────────────────────
+            # ── 片段卡片 ────────────────────────────────────────
             chunks = svc.get_chunks(doc["source_hash"], coll_arg)
             if chunks:
                 st.markdown(f"### 📦 Chunks ({len(chunks)})")
@@ -118,7 +118,7 @@ def render() -> None:
                     meta = chunk.get("metadata", {})
                     chunk_id = chunk["id"]
 
-                    # Title from metadata or first line
+                    # 标题取自元数据，否则取首行文本
                     title = meta.get("title", "")
                     if not title:
                         title = text[:60].replace("\n", " ").strip()
@@ -130,7 +130,7 @@ def render() -> None:
                             f"**Chunk {cidx + 1}** · `{chunk_id[-16:]}` · "
                             f"{len(text)} chars"
                         )
-                        # Show the actual chunk text (scrollable)
+                        # 显示片段实际文本（可滚动）
                         _height = max(120, min(len(text) // 2, 600))
                         st.text_area(
                             "Content",
@@ -140,13 +140,13 @@ def render() -> None:
                             key=f"chunk_text_{idx}_{cidx}",
                             label_visibility="collapsed",
                         )
-                        # Expandable metadata
+                        # 可展开的元数据
                         with st.expander("📋 Metadata", expanded=False):
                             st.json(meta)
             else:
                 st.caption("No chunks found in vector store for this document.")
 
-            # ── Image preview ──────────────────────────────────────
+            # ── 图片预览 ──────────────────────────────────────
             images = svc.get_images(doc["source_hash"], coll_arg)
             if images:
                 st.divider()

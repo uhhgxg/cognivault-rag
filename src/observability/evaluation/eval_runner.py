@@ -1,13 +1,13 @@
-"""Evaluation runner for batch quality assessment.
+"""用于批量质量评估的评估运行器。
 
-EvalRunner reads a golden test set, runs HybridSearch for each test case,
-optionally generates answers, then invokes the configured Evaluator(s) to
-produce a structured evaluation report.
+EvalRunner 读取一个黄金测试集，对每个测试用例运行 HybridSearch，
+可选地生成回答，然后调用配置好的 Evaluator 来
+产出结构化的评估报告。
 
-Design Principles:
-- Config-Driven: Evaluator selected via settings.yaml.
-- Observable: Produces EvalReport with per-query details.
-- Decoupled: Works with any BaseEvaluator implementation.
+设计原则：
+- 配置驱动：通过 settings.yaml 选择评估器。
+- 可观测：产出带有每条查询详情的 EvalReport。
+- 解耦：可与任何 BaseEvaluator 实现配合使用。
 """
 
 from __future__ import annotations
@@ -26,13 +26,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class GoldenTestCase:
-    """A single evaluation test case from the golden test set.
+    """黄金测试集中的一条评估测试用例。
 
     Attributes:
-        query: The test query string.
-        expected_chunk_ids: Ground-truth chunk IDs for IR metrics.
-        expected_sources: Ground-truth source file names (optional).
-        reference_answer: Reference answer text for LLM-as-Judge (optional).
+        query: 测试查询字符串。
+        expected_chunk_ids: 用于 IR 指标的标准答案 chunk ID。
+        expected_sources: 标准答案的来源文件名（可选）。
+        reference_answer: 用于 LLM 评分的标准参考回答文本（可选）。
     """
 
     query: str
@@ -52,14 +52,14 @@ class GoldenTestCase:
 
 @dataclass
 class QueryResult:
-    """Result of evaluating a single test case.
+    """对单条测试用例的评估结果。
 
     Attributes:
-        query: The test query.
-        retrieved_chunk_ids: IDs of chunks actually retrieved.
-        generated_answer: The generated answer (if applicable).
-        metrics: Evaluation metrics for this query.
-        elapsed_ms: Time taken for retrieval + evaluation.
+        query: 测试查询。
+        retrieved_chunk_ids: 实际检索到的 chunk ID 列表。
+        generated_answer: 生成的回答（如适用）。
+        metrics: 该查询的评估指标。
+        elapsed_ms: 检索 + 评估所花费的时间。
     """
 
     query: str
@@ -71,14 +71,14 @@ class QueryResult:
 
 @dataclass
 class EvalReport:
-    """Aggregated evaluation report across all test cases.
+    """汇总所有测试用例的评估报告。
 
     Attributes:
-        query_results: Per-query evaluation results.
-        aggregate_metrics: Averaged metrics across all queries.
-        total_elapsed_ms: Total time for the entire evaluation.
-        evaluator_name: Name of the evaluator used.
-        test_set_path: Path to the golden test set file.
+        query_results: 每条查询的评估结果。
+        aggregate_metrics: 所有查询上的平均指标。
+        total_elapsed_ms: 整个评估的总耗时。
+        evaluator_name: 所使用的评估器名称。
+        test_set_path: 黄金测试集文件的路径。
     """
 
     query_results: List[QueryResult] = field(default_factory=list)
@@ -88,7 +88,7 @@ class EvalReport:
     test_set_path: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
-        """Serialise report to dictionary."""
+        """把报告序列化为字典。"""
         return {
             "evaluator_name": self.evaluator_name,
             "test_set_path": self.test_set_path,
@@ -111,17 +111,17 @@ class EvalReport:
 
 
 def load_test_set(path: str | Path) -> List[GoldenTestCase]:
-    """Load golden test set from a JSON file.
+    """从 JSON 文件加载黄金测试集。
 
     Args:
-        path: Path to the golden test set JSON file.
+        path: 黄金测试集 JSON 文件的路径。
 
     Returns:
-        List of TestCase instances.
+        TestCase 实例列表。
 
     Raises:
-        FileNotFoundError: If the file does not exist.
-        ValueError: If the file format is invalid.
+        FileNotFoundError: 如果文件不存在。
+        ValueError: 如果文件格式无效。
     """
     file_path = Path(path)
     if not file_path.exists():
@@ -139,14 +139,14 @@ def load_test_set(path: str | Path) -> List[GoldenTestCase]:
 
 
 class EvalRunner:
-    """Runs batch evaluation against a golden test set.
+    """对黄金测试集进行批量评估。
 
-    This class orchestrates:
-    1. Loading the golden test set
-    2. Running HybridSearch for each query
-    3. Optionally generating answers
-    4. Invoking the evaluator to score each result
-    5. Aggregating metrics into an EvalReport
+    本类负责编排以下流程：
+    1. 加载黄金测试集
+    2. 对每条查询运行 HybridSearch
+    3. 可选地生成回答
+    4. 调用评估器对每个结果打分
+    5. 把指标汇总成一个 EvalReport
 
     Example::
 
@@ -168,19 +168,19 @@ class EvalRunner:
         answer_overrides: Optional[Dict[int, str]] = None,
         reranker: Any = None,
     ) -> None:
-        """Initialize EvalRunner.
+        """初始化 EvalRunner。
 
         Args:
-            settings: Application settings.
-            hybrid_search: HybridSearch instance for retrieval.
-            evaluator: BaseEvaluator instance for scoring.
-            answer_generator: Optional callable(query, chunks) -> str
-                for generating answers. If None, a simple concatenation
-                is used as a placeholder.
-            answer_overrides: Optional dict mapping test case index (0-based)
-                to a user-provided answer string. When present, the override
-                answer is used instead of auto-generation for that test case.
-            reranker: Optional CoreReranker instance for reranking results.
+            settings: 应用配置。
+            hybrid_search: 用于检索的 HybridSearch 实例。
+            evaluator: 用于打分的 BaseEvaluator 实例。
+            answer_generator: 可选的可调用对象 callable(query, chunks) -> str，
+                用于生成回答。如果为 None，则用简单的拼接文本
+                作为占位回答。
+            answer_overrides: 可选的字典，把测试用例索引（从 0 开始）
+                映射到用户提供的回答字符串。存在时，该测试用例
+                会使用此回答，而不是自动生成。
+            reranker: 可选的 CoreReranker 实例，用于对结果重排。
         """
         self.settings = settings
         self.hybrid_search = hybrid_search
@@ -196,19 +196,19 @@ class EvalRunner:
         collection: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> EvalReport:
-        """Run evaluation on the golden test set.
+        """对黄金测试集运行评估。
 
         Args:
-            test_set_path: Path to golden_test_set.json.
-            top_k: Number of chunks to retrieve per query.
-            collection: Optional collection name filter.
+            test_set_path: golden_test_set.json 的路径。
+            top_k: 每条查询要检索的 chunk 数量。
+            collection: 可选的集合名过滤条件。
 
         Returns:
-            EvalReport with per-query and aggregate metrics.
+            包含每条查询和汇总指标的 EvalReport。
 
         Raises:
-            FileNotFoundError: If test set file doesn't exist.
-            ValueError: If evaluator or hybrid_search is not set.
+            FileNotFoundError: 如果测试集文件不存在。
+            ValueError: 如果 evaluator 或 hybrid_search 没有设置。
         """
         if self.evaluator is None:
             raise ValueError("EvalRunner requires an evaluator.")
@@ -234,7 +234,7 @@ class EvalRunner:
 
         for idx, tc in enumerate(test_cases):
             logger.info("Evaluating [%d/%d]: %s", idx + 1, len(test_cases), tc.query[:60])
-            # Use user-provided answer override if available for this index
+            # 如果该索引有用户提供的回答覆盖，则使用它
             answer_override = self.answer_overrides.get(idx)
             qr = self._evaluate_single(
                 tc, top_k=top_k, collection=collection,
@@ -260,42 +260,42 @@ class EvalRunner:
         collection: Optional[str] = None,
         answer_override: Optional[str] = None,
     ) -> QueryResult:
-        """Evaluate a single test case.
+        """评估单个测试用例。
 
         Args:
-            test_case: The test case to evaluate.
-            top_k: Number of results to retrieve.
-            collection: Optional collection filter.
-            answer_override: User-provided answer text. When set, used
-                instead of auto-generated answer from chunks.
+            test_case: 要评估的测试用例。
+            top_k: 要检索的结果数量。
+            collection: 可选的集合过滤条件。
+            answer_override: 用户提供的回答文本。设置后，会使用它
+                而不是从 chunk 自动生成的回答。
 
         Returns:
-            QueryResult with metrics for this test case.
+            包含该测试用例指标的 QueryResult。
         """
         t0 = time.monotonic()
         qr = QueryResult(query=test_case.query)
 
-        # Step 1: Retrieve chunks
+        # 第 1 步：检索 chunk
         retrieved_chunks = self._retrieve(test_case.query, top_k, collection)
         qr.retrieved_chunk_ids = [
             self._get_chunk_id(c) for c in retrieved_chunks
         ]
 
-        # Step 2: Generate answer — prefer user override, then generator, then fallback
+        # 第 2 步：生成回答 —— 优先用用户覆盖值，其次用生成器，最后兜底
         if answer_override:
             answer = answer_override
         else:
             answer = self._generate_answer(test_case.query, retrieved_chunks)
         qr.generated_answer = answer
 
-        # Step 3: Build ground truth
+        # 第 3 步：构建标准答案
         ground_truth = (
             {"ids": test_case.expected_chunk_ids}
             if test_case.expected_chunk_ids
             else None
         )
 
-        # Step 4: Evaluate
+        # 第 4 步：评估
         try:
             metrics = self.evaluator.evaluate(  # type: ignore[union-attr]
                 query=test_case.query,
@@ -317,16 +317,16 @@ class EvalRunner:
         top_k: int,
         collection: Optional[str],
     ) -> List[Any]:
-        """Retrieve chunks using HybridSearch + optional Reranking.
+        """使用 HybridSearch + 可选的重排来检索 chunk。
 
-        Falls back to an empty list if search is not configured.
+        如果未配置搜索，则回退为空列表。
         """
         if self.hybrid_search is None:
             logger.warning("No HybridSearch configured; returning empty results.")
             return []
 
         try:
-            # Retrieve more candidates if reranker is enabled
+            # 如果启用了重排器，则检索更多候选结果
             has_reranker = self.reranker is not None and getattr(self.reranker, 'is_enabled', False)
             initial_top_k = top_k * 2 if has_reranker else top_k
 
@@ -336,7 +336,7 @@ class EvalRunner:
             )
             results = results if isinstance(results, list) else results.results
 
-            # Apply reranking if enabled
+            # 如果启用了重排，则应用重排
             if has_reranker and results:
                 rerank_result = self.reranker.rerank(query=query, results=results, top_k=top_k)
                 results = rerank_result.results
@@ -347,10 +347,10 @@ class EvalRunner:
             return []
 
     def _generate_answer(self, query: str, chunks: List[Any]) -> str:
-        """Generate an answer from retrieved chunks.
+        """根据检索到的 chunk 生成回答。
 
-        If a custom answer_generator is provided, use it.
-        Otherwise, concatenate chunk texts as a simple placeholder.
+        如果提供了自定义的 answer_generator，则使用它。
+        否则，把 chunk 文本拼接起来作为简单的占位回答。
         """
         if self.answer_generator is not None:
             try:
@@ -358,7 +358,7 @@ class EvalRunner:
             except Exception as exc:
                 logger.warning("Answer generation failed: %s", exc)
 
-        # Fallback: concatenate chunk texts
+        # 兜底：拼接 chunk 文本
         texts = []
         for c in chunks:
             if isinstance(c, str):
@@ -370,10 +370,10 @@ class EvalRunner:
             else:
                 texts.append(str(c))
 
-        return " ".join(texts[:5])  # first 5 chunks
+        return " ".join(texts[:5])  # 取前 5 个 chunk
 
     def _get_chunk_id(self, chunk: Any) -> str:
-        """Extract chunk ID from various representations."""
+        """从多种 chunk 表示形式中提取 chunk ID。"""
         if isinstance(chunk, str):
             return chunk
         if isinstance(chunk, dict):
@@ -389,23 +389,23 @@ class EvalRunner:
 
     @staticmethod
     def _aggregate_metrics(results: List[QueryResult]) -> Dict[str, float]:
-        """Compute average metrics across all query results.
+        """计算所有查询结果的平均指标。
 
         Args:
-            results: List of QueryResult with per-query metrics.
+            results: 包含每条查询指标的 QueryResult 列表。
 
         Returns:
-            Dictionary of average metric values.
+            平均指标值的字典。
         """
         if not results:
             return {}
 
-        # Collect all metric keys
+        # 收集所有指标键
         all_keys: set[str] = set()
         for qr in results:
             all_keys.update(qr.metrics.keys())
 
-        # Average each metric
+        # 计算每个指标的平均值
         averages: Dict[str, float] = {}
         for key in sorted(all_keys):
             values = [qr.metrics[key] for qr in results if key in qr.metrics]

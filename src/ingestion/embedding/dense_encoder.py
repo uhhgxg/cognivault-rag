@@ -1,15 +1,14 @@
-"""Dense Encoder for generating embeddings from text chunks.
+"""稠密编码器，用于把文本分块转换成向量。
 
-This module implements the Dense Encoder component of the Ingestion Pipeline,
-responsible for converting text chunks into dense vector representations using
-configurable embedding providers.
+本模块实现摄取流水线中的稠密编码器组件，
+负责用可配置的 embedding 提供方把文本分块转换成稠密向量表示。
 
-Design Principles:
-- Config-Driven: Uses factory pattern to obtain embedding provider from settings
-- Batch Processing: Optimizes API calls through batching
-- Observable: Accepts TraceContext for future observability integration
-- Error Handling: Individual failures shouldn't crash entire batch
-- Deterministic: Same inputs produce same outputs
+设计原则：
+- 配置驱动：通过工厂模式从 settings 获取 embedding 提供方
+- 批处理：通过分批调用优化 API 请求
+- 可观测：接收 TraceContext 以便未来接入可观测性
+- 错误处理：单条失败不应让整批崩溃
+- 确定性：相同输入产生相同输出
 """
 
 from typing import List, Optional, Any
@@ -18,18 +17,17 @@ from src.libs.embedding.base_embedding import BaseEmbedding
 
 
 class DenseEncoder:
-    """Encodes text chunks into dense vectors using BaseEmbedding provider.
-    
-    This encoder acts as a bridge between the ingestion pipeline and the
-    pluggable embedding layer. It handles batching, error recovery, and
-    maintains alignment between input chunks and output vectors.
-    
-    Design:
-    - Dependency Injection: Receives BaseEmbedding instance (no direct factory call)
-    - Batch-First: Processes all chunks in configurable batch sizes
-    - Stateless: No internal state between encode() calls
-    
-    Example:
+    """用 BaseEmbedding 提供方把文本分块编码成稠密向量。
+
+    这个编码器作为摄取流水线和可插拔 embedding 层之间的桥梁。
+    它负责批处理、错误恢复，并保持输入分块和输出向量之间的对齐关系。
+
+    设计：
+    - 依赖注入：接收 BaseEmbedding 实例（不直接调用工厂）
+    - 批处理优先：按可配置的批次大小处理所有分块
+    - 无状态：encode() 调用之间不保存内部状态
+
+    示例：
         >>> from src.libs.embedding.embedding_factory import EmbeddingFactory
         >>> from src.core.settings import load_settings
         >>> 
@@ -48,14 +46,14 @@ class DenseEncoder:
         embedding: BaseEmbedding,
         batch_size: int = 100,
     ):
-        """Initialize DenseEncoder.
-        
-        Args:
-            embedding: Embedding provider instance (from EmbeddingFactory)
-            batch_size: Number of chunks to process per API call (default: 100)
-        
-        Raises:
-            ValueError: If batch_size <= 0
+        """初始化 DenseEncoder。
+
+        参数：
+            embedding: embedding 提供方实例（来自 EmbeddingFactory）
+            batch_size: 每次 API 调用处理的分块数量（默认 100）
+
+        可能抛出：
+            ValueError: 如果 batch_size <= 0
         """
         if batch_size <= 0:
             raise ValueError(f"batch_size must be positive, got {batch_size}")
@@ -68,27 +66,27 @@ class DenseEncoder:
         chunks: List[Chunk],
         trace: Optional[Any] = None,
     ) -> List[List[float]]:
-        """Encode chunks into dense vectors.
-        
-        This method:
-        1. Extracts text from each chunk
-        2. Batches texts according to batch_size
-        3. Calls embedding.embed() for each batch
-        4. Concatenates results maintaining chunk order
-        
-        Args:
-            chunks: List of Chunk objects to encode
-            trace: Optional TraceContext for observability (reserved for Stage F)
-        
-        Returns:
-            List of dense vectors (one per chunk, in same order).
-            Each vector is a list of floats with dimension matching the embedding model.
-        
-        Raises:
-            ValueError: If chunks list is empty
-            RuntimeError: If embedding provider fails for all batches
-        
-        Example:
+        """把分块编码成稠密向量。
+
+        本方法流程：
+        1. 从每个分块提取文本
+        2. 按 batch_size 把文本分批
+        3. 对每个批次调用 embedding.embed()
+        4. 按分块顺序拼接结果
+
+        参数：
+            chunks: 要编码的 Chunk 对象列表
+            trace: 可选的 TraceContext，用于可观测性（预留给 Stage F）
+
+        返回：
+            稠密向量列表（每个分块一个，顺序与输入一致）。
+            每个向量是一个浮点数列表，维度与 embedding 模型一致。
+
+        可能抛出：
+            ValueError: 如果分块列表为空
+            RuntimeError: 如果所有批次的 embedding 提供方都失败
+
+        示例：
             >>> chunks = [
             ...     Chunk(id="1", text="First chunk", metadata={}),
             ...     Chunk(id="2", text="Second chunk", metadata={})
@@ -99,17 +97,17 @@ class DenseEncoder:
         if not chunks:
             raise ValueError("Cannot encode empty chunks list")
         
-        # Extract text from chunks
+        # 从分块中提取文本
         texts = [chunk.text for chunk in chunks]
         
-        # Validate that all texts are non-empty
+        # 校验所有文本都非空
         for i, text in enumerate(texts):
             if not text or not text.strip():
                 raise ValueError(
                     f"Chunk at index {i} (id={chunks[i].id}) has empty or whitespace-only text"
                 )
         
-        # Process in batches
+        # 分批处理
         all_vectors: List[List[float]] = []
         
         for batch_start in range(0, len(texts), self.batch_size):
@@ -117,13 +115,13 @@ class DenseEncoder:
             batch_texts = texts[batch_start:batch_end]
             
             try:
-                # Call embedding provider
+                # 调用 embedding 提供方
                 batch_vectors = self.embedding.embed(
                     texts=batch_texts,
                     trace=trace,
                 )
                 
-                # Validate output shape
+                # 校验输出形状
                 if len(batch_vectors) != len(batch_texts):
                     raise RuntimeError(
                         f"Embedding provider returned {len(batch_vectors)} vectors "
@@ -133,7 +131,7 @@ class DenseEncoder:
                 all_vectors.extend(batch_vectors)
                 
             except Exception as batch_err:
-                # Fallback: encode one-by-one with retry for transient API failures
+                # 兜底：逐条编码并重试，应对临时性 API 失败
                 import time
                 import logging
                 logger = logging.getLogger(__name__)
@@ -166,14 +164,14 @@ class DenseEncoder:
                                     f"Failed to encode chunk {chunk_idx} after 3 attempts: {single_err}"
                                 ) from single_err
         
-        # Final validation
+        # 最终校验
         if len(all_vectors) != len(chunks):
             raise RuntimeError(
                 f"Vector count mismatch: got {len(all_vectors)} vectors "
                 f"for {len(chunks)} chunks"
             )
         
-        # Validate vector dimensions are consistent
+        # 校验向量维度是否一致
         if all_vectors:
             expected_dim = len(all_vectors[0])
             for i, vec in enumerate(all_vectors):
@@ -186,15 +184,15 @@ class DenseEncoder:
         return all_vectors
     
     def get_batch_count(self, num_chunks: int) -> int:
-        """Calculate number of batches needed for given chunk count.
-        
-        Utility method for logging/progress tracking.
-        
-        Args:
-            num_chunks: Number of chunks to encode
-        
-        Returns:
-            Number of batches required
+        """计算给定分块数需要多少个批次。
+
+        工具方法，用于日志或进度跟踪。
+
+        参数：
+            num_chunks: 要编码的分块数
+
+        返回：
+            所需的批次数
         """
         if num_chunks <= 0:
             return 0

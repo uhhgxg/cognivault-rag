@@ -17,7 +17,7 @@ from src.tool_agent.unified_tool import UnifiedTool, ToolResult, build_input_sch
 
 
 # =============================================================================
-# Function Tool Adapter
+# 函数工具适配器
 # =============================================================================
 
 def wrap_function_tool(
@@ -153,7 +153,7 @@ def _infer_schema_from_handler(handler: Callable) -> Dict[str, Any]:
 
 
 # =============================================================================
-# MCP Tool Adapter
+# MCP 工具适配器
 # =============================================================================
 
 def wrap_mcp_tool(

@@ -1,12 +1,12 @@
-"""MCP Tool: list_collections
+"""MCP 工具：list_collections
 
-This tool provides collection listing capabilities through the MCP protocol.
-It lists all available collections in the vector store with statistics.
+本工具通过 MCP 协议提供集合列表能力。
+它会列出向量库中所有可用集合及其统计信息。
 
-Usage via MCP:
-    Tool name: list_collections
-    Input schema:
-        - include_stats (boolean, optional): Include statistics for each collection
+通过 MCP 使用：
+    工具名：list_collections
+    输入 schema：
+        - include_stats（布尔，可选）：是否包含每个集合的统计信息
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# Tool metadata
+# 工具元数据
 TOOL_NAME = "list_collections"
 TOOL_DESCRIPTION = """List all available document collections in the knowledge base.
 
@@ -53,19 +53,19 @@ TOOL_INPUT_SCHEMA: Dict[str, Any] = {
 
 @dataclass
 class CollectionInfo:
-    """Information about a single collection.
-    
-    Attributes:
-        name: Collection name
-        count: Number of documents/chunks in the collection (optional)
-        metadata: Collection metadata dictionary
+    """单个集合的信息。
+
+    属性：
+        name: 集合名
+        count: 集合中的文档/分块数量（可选）
+        metadata: 集合的元数据字典
     """
     name: str
     count: Optional[int] = None
     metadata: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
+        """转成字典表示。"""
         result: Dict[str, Any] = {"name": self.name}
         if self.count is not None:
             result["count"] = self.count
@@ -76,28 +76,28 @@ class CollectionInfo:
 
 @dataclass
 class ListCollectionsConfig:
-    """Configuration for list_collections tool.
-    
-    Attributes:
-        persist_directory: Path to ChromaDB storage directory
-        include_stats_default: Default value for include_stats parameter
+    """list_collections 工具的配置。
+
+    属性：
+        persist_directory: ChromaDB 存储目录路径
+        include_stats_default: include_stats 参数的默认值
     """
     persist_directory: str = "./data/db/chroma"
     include_stats_default: bool = True
 
 
 class ListCollectionsTool:
-    """MCP Tool for listing knowledge base collections.
-    
-    This class encapsulates the list_collections tool logic,
-    querying the vector store to enumerate available collections.
-    
-    Design Principles:
-    - Config-Driven: Paths from settings.yaml
-    - Error Resilience: Graceful handling of missing directories
-    - Observable: Logging for debugging
-    
-    Example:
+    """用于列出知识库集合的 MCP 工具。
+
+    这个类封装了 list_collections 工具的逻辑，
+    查询向量库来枚举可用的集合。
+
+    设计原则：
+    - 配置驱动：路径来自 settings.yaml
+    - 容错性：目录缺失时优雅处理
+    - 可观测：记日志方便调试
+
+    示例：
         >>> tool = ListCollectionsTool(settings)
         >>> result = await tool.execute(include_stats=True)
         >>> print(result)
@@ -108,26 +108,26 @@ class ListCollectionsTool:
         settings: Optional[Settings] = None,
         config: Optional[ListCollectionsConfig] = None,
     ) -> None:
-        """Initialize ListCollectionsTool.
-        
-        Args:
-            settings: Application settings. If None, loaded from default path.
-            config: Tool configuration. If None, derived from settings.
+        """初始化 ListCollectionsTool。
+
+        参数：
+            settings: 应用配置。为 None 时从默认路径加载。
+            config: 工具配置。为 None 时从 settings 派生。
         """
         self._settings = settings
         self._config = config
-        
+
     @property
     def settings(self) -> Settings:
-        """Get settings, loading if necessary."""
+        """获取配置，必要时加载。"""
         if self._settings is None:
             from src.core.settings import load_settings
             self._settings = load_settings()
         return self._settings
-    
+
     @property
     def config(self) -> ListCollectionsConfig:
-        """Get configuration, deriving from settings if necessary."""
+        """获取配置，必要时从 settings 派生。"""
         if self._config is None:
             try:
                 persist_dir = getattr(
@@ -144,14 +144,14 @@ class ListCollectionsTool:
         return self._config
     
     def _get_chroma_client(self) -> Any:
-        """Get or create ChromaDB client.
-        
-        Returns:
-            ChromaDB PersistentClient instance.
-            
-        Raises:
-            ImportError: If chromadb is not installed.
-            RuntimeError: If client creation fails.
+        """获取或创建 ChromaDB 客户端。
+
+        返回：
+            ChromaDB PersistentClient 实例。
+
+        可能抛出：
+            ImportError: chromadb 未安装时抛出。
+            RuntimeError: 创建客户端失败时抛出。
         """
         try:
             import chromadb
@@ -166,7 +166,7 @@ class ListCollectionsTool:
         
         if not persist_path.exists():
             logger.warning(f"ChromaDB directory does not exist: {persist_path}")
-            # Return client anyway - it will just have no collections
+            # 照样返回客户端 —— 它只是不会有任何集合
             persist_path.mkdir(parents=True, exist_ok=True)
         
         try:
@@ -187,13 +187,13 @@ class ListCollectionsTool:
         self,
         include_stats: bool = True
     ) -> List[CollectionInfo]:
-        """List all available collections.
-        
-        Args:
-            include_stats: Whether to include document counts.
-            
-        Returns:
-            List of CollectionInfo objects.
+        """列出所有可用集合。
+
+        参数：
+            include_stats: 是否包含文档数量。
+
+        返回：
+            CollectionInfo 对象列表。
         """
         try:
             client = self._get_chroma_client()
@@ -204,7 +204,7 @@ class ListCollectionsTool:
         collections_info: List[CollectionInfo] = []
         
         try:
-            # Get all collections from ChromaDB
+            # 从 ChromaDB 获取所有集合
             collections = client.list_collections()
             
             for collection in collections:
@@ -235,13 +235,13 @@ class ListCollectionsTool:
         self,
         collections: List[CollectionInfo]
     ) -> str:
-        """Format collections list as a readable string.
-        
-        Args:
-            collections: List of CollectionInfo objects.
-            
-        Returns:
-            Formatted string suitable for MCP response.
+        """把集合列表格式化成可读的字符串。
+
+        参数：
+            collections: CollectionInfo 对象列表。
+
+        返回：
+            适合 MCP 响应的格式化字符串。
         """
         if not collections:
             return "No collections found in the knowledge base."
@@ -257,7 +257,7 @@ class ListCollectionsTool:
                 line += f" - {coll.count} documents"
             
             if coll.metadata:
-                # Filter out internal metadata
+                # 过滤掉内部元数据
                 user_metadata = {
                     k: v for k, v in coll.metadata.items()
                     if not k.startswith('_') and not k.startswith('hnsw:')
@@ -274,19 +274,19 @@ class ListCollectionsTool:
         self,
         include_stats: bool = True,
     ) -> types.CallToolResult:
-        """Execute the list_collections tool.
-        
-        Args:
-            include_stats: Whether to include statistics for each collection.
-            
-        Returns:
-            CallToolResult with formatted collection list.
+        """执行 list_collections 工具。
+
+        参数：
+            include_stats: 是否包含每个集合的统计信息。
+
+        返回：
+            带格式化集合列表的 CallToolResult。
         """
         logger.info(f"Executing list_collections (include_stats={include_stats})")
         
         try:
-            # Run blocking ChromaDB I/O in a thread to avoid blocking
-            # the async event loop / MCP stdio transport
+            # 把阻塞式 ChromaDB I/O 放到线程里跑，避免阻塞
+            # 异步事件循环 / MCP stdio 传输
             collections = await asyncio.to_thread(
                 self.list_collections, include_stats,
             )
@@ -316,20 +316,20 @@ class ListCollectionsTool:
 
 
 def register_tool(protocol_handler: ProtocolHandler) -> None:
-    """Register the list_collections tool with the protocol handler.
-    
-    This function is called by _register_default_tools() in protocol_handler.py
-    to register this tool when the MCP server starts.
-    
-    Args:
-        protocol_handler: ProtocolHandler instance to register with.
+    """向协议处理器注册 list_collections 工具。
+
+    这个函数由 protocol_handler.py 里的 _register_default_tools() 调用，
+    在 MCP 服务启动时注册本工具。
+
+    参数：
+        protocol_handler: 要注册到的 ProtocolHandler 实例。
     """
     tool = ListCollectionsTool()
     
     async def handler(
         include_stats: bool = True,
     ) -> types.CallToolResult:
-        """Handler function for MCP tool calls."""
+        """MCP 工具调用的 handler 函数。"""
         return await tool.execute(include_stats=include_stats)
     
     protocol_handler.register_tool(

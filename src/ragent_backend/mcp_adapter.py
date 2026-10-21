@@ -8,7 +8,7 @@ from src.mcp_server.protocol_handler import create_mcp_server, get_protocol_hand
 
 
 class RAGMCPClient:
-    """Adapter that invokes the local RAG MCP tools through protocol handler."""
+    """适配器：通过 protocol handler 调用本地 RAG MCP 工具。"""
 
     def __init__(self) -> None:
         server = create_mcp_server(

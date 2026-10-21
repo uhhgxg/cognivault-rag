@@ -1,18 +1,18 @@
-"""Universal document loader using MarkItDown with VLM OCR fallback for scanned PDFs.
+"""通用文档加载器，基于 MarkItDown，并对扫描版 PDF 提供 VLM OCR 兜底。
 
-This module provides a single loader entry-point for multiple document formats:
-- PDF (including scanned PDFs via VLM OCR fallback)
-- Word (.docx)
-- Excel (.xlsx, .xls)
-- PowerPoint (.pptx)
-- Text (.txt, .md, .csv, .json, .yaml, .yml)
-- HTML (.html, .htm)
+本模块提供一个统一的加载入口，支持多种文档格式：
+- PDF（含扫描版 PDF，通过 VLM OCR 兜底处理）
+- Word（.docx）
+- Excel（.xlsx、.xls）
+- PowerPoint（.pptx）
+- 文本（.txt、.md、.csv、.json、.yaml、.yml）
+- HTML（.html、.htm）
 
-Design principles:
-- Unified parsing via MarkItDown for all supported formats.
-- Scanned PDF detection based on low text density per page.
-- VLM OCR uses the existing vision_llm configuration (e.g., qwen-vl-max).
-- Image extraction for PDFs remains compatible with downstream ImageCaptioner.
+设计原则：
+- 所有支持的格式统一通过 MarkItDown 解析。
+- 根据每页文字密度过低来判定是否为扫描版 PDF。
+- VLM OCR 复用现有的 vision_llm 配置（如 qwen-vl-max）。
+- PDF 的图片提取与下游的 ImageCaptioner 保持兼容。
 """
 
 from __future__ import annotations
@@ -48,18 +48,18 @@ from src.libs.llm.llm_factory import LLMFactory
 
 logger = logging.getLogger(__name__)
 
-# Thresholds for scanned PDF detection
-# If total stripped text < 100 chars OR average per page < 30, treat as scanned
+# 扫描版 PDF 检测阈值
+# 当去除空白后的总文字数 < 100，或平均每页文字数 < 30，就判定为扫描版
 SCANNED_PDF_MIN_TOTAL_CHARS = 100
 SCANNED_PDF_MIN_AVG_CHARS_PER_PAGE = 30
-# Max parallel workers for VLM OCR to avoid API rate limits
+# VLM OCR 的最大并发数，避免触发 API 限流
 VLM_OCR_MAX_WORKERS = 3
-# Default VLM prompt for OCR
+# VLM OCR 用的默认提示词
 VLM_OCR_PROMPT = "请提取这张图片中的所有文字，保持原有段落和排版，直接输出文字内容，不要添加任何解释。"
 
 
 class UniversalLoader(BaseLoader):
-    """Universal document loader supporting multiple formats with scanned PDF OCR fallback."""
+    """通用文档加载器，支持多种格式，并对扫描版 PDF 提供 OCR 兜底。"""
 
     SUPPORTED_EXTENSIONS = {
         '.pdf', '.docx', '.txt', '.md', '.csv',
@@ -87,13 +87,13 @@ class UniversalLoader(BaseLoader):
         self._vision_llm_lock = threading.Lock()
 
     def load(self, file_path: str | Path) -> Document:
-        """Load and parse a document file.
+        """加载并解析一个文档文件。
 
         Args:
-            file_path: Path to the document file.
+            file_path: 文档文件路径。
 
         Returns:
-            Document with parsed text and metadata.
+            包含解析后文本和元数据的 Document。
         """
         path = self._validate_file(file_path)
         ext = path.suffix.lower()
@@ -104,7 +104,7 @@ class UniversalLoader(BaseLoader):
         doc_hash = self._compute_file_hash(path)
         doc_id = f"doc_{doc_hash[:16]}"
 
-        # Parse with MarkItDown
+        # 用 MarkItDown 解析
         try:
             md_result = self._markitdown.convert(str(path))
             text_content = md_result.text_content if hasattr(md_result, 'text_content') else str(md_result)
@@ -129,7 +129,7 @@ class UniversalLoader(BaseLoader):
             page_count = self._get_pdf_page_count(path)
             metadata["page_count"] = page_count
 
-            # Scanned PDF detection
+            # 扫描版 PDF 检测
             is_scanned = False
             if page_count > 0:
                 stripped_len = len(text_content.strip())
@@ -152,7 +152,7 @@ class UniversalLoader(BaseLoader):
                         f"请检查 vision_llm (当前配置模型: {self.settings.vision_llm.model if self.settings and hasattr(self.settings, 'vision_llm') else 'unknown'}) 是否可用，或尝试上传可搜索 PDF。"
                     ) from e
             else:
-                # Normal PDF: extract images if enabled
+                # 普通 PDF：如启用则提取图片
                 if self.extract_images:
                     try:
                         text_content, images_metadata = self._extract_pdf_images(path, text_content, doc_hash)
@@ -176,7 +176,7 @@ class UniversalLoader(BaseLoader):
         )
 
     # ------------------------------------------------------------------
-    # Helpers
+    # 辅助方法
     # ------------------------------------------------------------------
 
     def _compute_file_hash(self, file_path: Path) -> str:
@@ -230,7 +230,7 @@ class UniversalLoader(BaseLoader):
         return self._vision_llm
 
     def _vlm_ocr_pdf(self, pdf_path: Path) -> str:
-        """Render PDF pages to images and run VLM OCR in parallel."""
+        """把 PDF 各页渲染成图片，并行执行 VLM OCR。"""
         if not PYMUPDF_AVAILABLE:
             raise RuntimeError("PyMuPDF is required for VLM OCR on PDFs.")
 
@@ -241,7 +241,7 @@ class UniversalLoader(BaseLoader):
         doc = fitz.open(pdf_path)
         page_count = len(doc)
 
-        # Render all pages to temporary PNG files
+        # 把所有页面渲染成临时 PNG 文件
         page_images: List[tuple[int, str]] = []
         with tempfile.TemporaryDirectory() as tmpdir:
             for page_num in range(page_count):
@@ -252,7 +252,7 @@ class UniversalLoader(BaseLoader):
                 page_images.append((page_num, str(img_path)))
             doc.close()
 
-            # Parallel OCR with controlled concurrency
+            # 控制并发地并行执行 OCR
             ocr_results: Dict[int, str] = {}
 
             def _ocr_page(page_num: int, img_path: str) -> tuple[int, str]:
@@ -276,7 +276,7 @@ class UniversalLoader(BaseLoader):
                     page_num, text = future.result()
                     ocr_results[page_num] = text
 
-            # Assemble page texts in order
+            # 按页码顺序拼接文本
             assembled = []
             for page_num in range(page_count):
                 page_text = ocr_results.get(page_num, "")
@@ -291,9 +291,9 @@ class UniversalLoader(BaseLoader):
         text_content: str,
         doc_hash: str,
     ) -> tuple[str, List[Dict[str, Any]]]:
-        """Extract images from a normal PDF and insert placeholders.
+        """从普通 PDF 中提取图片并插入占位符。
 
-        Adapted from the previous PdfLoader implementation.
+        改编自之前的 PdfLoader 实现。
         """
         if not self.extract_images or not PYMUPDF_AVAILABLE:
             return text_content, []

@@ -32,14 +32,14 @@ class FileIntegrityChecker(ABC):
         """计算文件 SHA256 内容哈希。
 
         Args:
-            file_path: Path to the file to hash.
+            file_path: 要计算哈希的文件路径。
 
         Returns:
-            Hexadecimal SHA256 hash string (64 characters).
+            64 字符长度的 SHA256 哈希十六进制字符串。
 
         Raises:
-            FileNotFoundError: If file does not exist.
-            IOError: If path is not a file or cannot be read.
+            FileNotFoundError: 当文件不存在时。
+            IOError: 当路径不是文件或无法读取时。
         """
         pass
 
@@ -48,10 +48,10 @@ class FileIntegrityChecker(ABC):
         """根据文件哈希判断是否应跳过本次处理。
 
         Args:
-            file_hash: SHA256 hash of the file.
+            file_hash: 文件的 SHA256 哈希。
 
         Returns:
-            True if file has been successfully processed before, False otherwise.
+            如果该文件之前已成功处理过返回 True，否则返回 False。
         """
         pass
 
@@ -65,12 +65,12 @@ class FileIntegrityChecker(ABC):
         """将文件标记为“处理成功”。
 
         Args:
-            file_hash: SHA256 hash of the file.
-            file_path: Original file path (for tracking).
-            collection: Optional collection/namespace identifier.
+            file_hash: 文件的 SHA256 哈希。
+            file_path: 原始文件路径（便于回溯）。
+            collection: 可选的集合/命名空间标识。
 
         Raises:
-            RuntimeError: If database operation fails.
+            RuntimeError: 当数据库操作失败时。
         """
         pass
 
@@ -83,16 +83,15 @@ class FileIntegrityChecker(ABC):
     ) -> None:
         """将文件标记为“处理失败”。
 
-        Failed files are tracked but not skipped on subsequent runs,
-        allowing retries.
+        失败的文件会被记录但不会被跳过，允许后续重试。
 
         Args:
-            file_hash: SHA256 hash of the file.
-            file_path: Original file path (for tracking).
-            error_msg: Error message describing the failure.
+            file_hash: 文件的 SHA256 哈希。
+            file_path: 原始文件路径（便于回溯）。
+            error_msg: 描述失败原因的错误信息。
 
         Raises:
-            RuntimeError: If database operation fails.
+            RuntimeError: 当数据库操作失败时。
         """
         pass
 
@@ -101,10 +100,10 @@ class FileIntegrityChecker(ABC):
         """按文件哈希删除一条摄取记录。
 
         Args:
-            file_hash: SHA256 hash identifying the record.
+            file_hash: 用于定位该记录的 SHA256 哈希。
 
         Returns:
-            True if a record was deleted, False if not found.
+            若确实删除到一条记录返回 True，找不到则返回 False。
         """
         pass
 
@@ -115,12 +114,12 @@ class FileIntegrityChecker(ABC):
         """列出成功处理过的文件记录。
 
         Args:
-            collection: Optional collection filter.  When *None* all
-                successful records are returned.
+            collection: 可选的集合过滤条件。当为 *None* 时返回全部
+                成功记录。
 
         Returns:
-            List of dicts with keys: file_hash, file_path, collection,
-            processed_at, updated_at.
+            字典列表，每个字典包含字段：file_hash、file_path、collection、
+            processed_at、updated_at。
         """
         pass
 
@@ -146,7 +145,7 @@ class SQLiteIntegrityChecker(FileIntegrityChecker):
         """初始化检查器并确保数据库可用。
         
         Args:
-            db_path: Path to SQLite database file.
+            db_path: SQLite 数据库文件路径。
         """
         self.db_path = db_path
         self._conn = None
@@ -201,18 +200,17 @@ class SQLiteIntegrityChecker(FileIntegrityChecker):
     def compute_sha256(self, file_path: str) -> str:
         """分块读取文件并计算 SHA256。
         
-        Uses 64KB chunks to handle large files without loading entire
-        file into memory.
+        使用 64KB 的分块来处理大文件，避免一次性把整个文件读入内存。
         
         Args:
-            file_path: Path to the file to hash.
+            file_path: 要计算哈希的文件路径。
             
         Returns:
-            Hexadecimal SHA256 hash string (64 characters).
+            64 字符长度的 SHA256 哈希十六进制字符串。
             
         Raises:
-            FileNotFoundError: If file does not exist.
-            IOError: If path is not a file or cannot be read.
+            FileNotFoundError: 当文件不存在时。
+            IOError: 当路径不是文件或无法读取时。
         """
         path = Path(file_path)
         
@@ -238,14 +236,14 @@ class SQLiteIntegrityChecker(FileIntegrityChecker):
     def should_skip(self, file_hash: str) -> bool:
         """判断该哈希对应文件是否可跳过。
         
-        Only files with status='success' are skipped. Failed files
-        can be retried.
+        只有 status='success' 的文件才会被跳过；failed 状态的文件
+        仍允许重试。
         
         Args:
-            file_hash: SHA256 hash of the file.
+            file_hash: 文件的 SHA256 哈希。
             
         Returns:
-            True if file has status='success', False otherwise.
+            文件状态为 'success' 返回 True，否则返回 False。
         """
         # 使用短连接读状态，减少长连接竞争。
         conn = sqlite3.connect(self.db_path)
@@ -273,15 +271,15 @@ class SQLiteIntegrityChecker(FileIntegrityChecker):
     ) -> None:
         """记录文件成功处理状态。
         
-        Uses INSERT OR REPLACE for idempotent operation.
+        使用 INSERT OR REPLACE 写入，保证重复调用也安全（幂等）。
         
         Args:
-            file_hash: SHA256 hash of the file.
-            file_path: Original file path (for tracking).
-            collection: Optional collection/namespace identifier.
+            file_hash: 文件的 SHA256 哈希。
+            file_path: 原始文件路径（便于回溯）。
+            collection: 可选的集合/命名空间标识。
             
         Raises:
-            RuntimeError: If database operation fails.
+            RuntimeError: 当数据库操作失败时。
         """
         # 统一使用 UTC ISO8601，便于跨时区与审计。
         now = datetime.now(timezone.utc).isoformat()
@@ -328,15 +326,15 @@ class SQLiteIntegrityChecker(FileIntegrityChecker):
     ) -> None:
         """记录文件处理失败状态。
         
-        Failed files are not skipped, allowing retries.
+        失败的文件不会被跳过，允许后续重试。
         
         Args:
-            file_hash: SHA256 hash of the file.
-            file_path: Original file path (for tracking).
-            error_msg: Error message describing the failure.
+            file_hash: 文件的 SHA256 哈希。
+            file_path: 原始文件路径（便于回溯）。
+            error_msg: 描述失败原因的错误信息。
             
         Raises:
-            RuntimeError: If database operation fails.
+            RuntimeError: 当数据库操作失败时。
         """
         # 失败记录同样写 UTC 时间，便于后续排障与重试策略。
         now = datetime.now(timezone.utc).isoformat()
@@ -378,10 +376,10 @@ class SQLiteIntegrityChecker(FileIntegrityChecker):
         """按哈希删除记录。
 
         Args:
-            file_hash: SHA256 hash identifying the record.
+            file_hash: 用于定位该记录的 SHA256 哈希。
 
         Returns:
-            True if a record was deleted, False if not found.
+            若确实删除到一条记录返回 True，找不到则返回 False。
         """
         conn = sqlite3.connect(self.db_path)
         try:
@@ -403,11 +401,11 @@ class SQLiteIntegrityChecker(FileIntegrityChecker):
         """查询成功处理记录列表。
 
         Args:
-            collection: Optional collection filter.
+            collection: 可选的集合过滤条件。
 
         Returns:
-            List of dicts with keys: file_hash, file_path, collection,
-            processed_at, updated_at.
+            字典列表，每个字典包含字段：file_hash、file_path、collection、
+            processed_at、updated_at。
         """
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row

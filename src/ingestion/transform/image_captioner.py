@@ -1,10 +1,10 @@
-"""Image Captioner transform for enriching chunks with image descriptions.
+"""图片描述（caption）变换：用图片描述来丰富分块内容。
 
-Performance Optimizations:
-1. Only processes images that are actually referenced in chunk text (via [IMAGE: id] placeholder)
-2. Uses caption cache to avoid redundant Vision API calls for the same image
-3. Skips chunks without image references entirely
-4. Parallel processing of unique images with thread-safe caching
+性能优化：
+1. 只处理分块文本中实际引用到的图片（通过 [IMAGE: id] 占位符识别）
+2. 用描述缓存避免对同一张图片重复调用 Vision API
+3. 完全跳过不包含图片引用的分块
+4. 对不同的图片做并行处理，并配合线程安全的缓存
 """
 
 import re
@@ -23,24 +23,23 @@ from src.observability.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Regex to find image placeholders: [IMAGE: some_id]
+# 用于查找图片占位符的正则表达式：[IMAGE: 某个id]
 IMAGE_PLACEHOLDER_PATTERN = re.compile(r'\[IMAGE:\s*([^\]]+)\]')
 
-# Default max parallel workers for Vision API calls
-DEFAULT_MAX_WORKERS = 3  # Lower than text LLM due to higher cost/latency
+# Vision API 调用的默认最大并行线程数
+DEFAULT_MAX_WORKERS = 3  # 比文本 LLM 低，因为成本更高、延迟更大
 
 
 class ImageCaptioner(BaseTransform):
-    """Generates captions for images referenced in chunks using Vision LLM.
-    
-    This transform identifies chunks containing image references, uses a Vision LLM
-    to generate descriptive captions, and enriches the chunk text/metadata with
-    these captions to improve retrieval for visual content.
-    
-    Key Features:
-    - Only processes images actually referenced in chunk text (not all images in metadata)
-    - Caches captions to avoid redundant Vision API calls
-    - Thread-safe caption cache for potential future parallelization
+    """用 Vision LLM 给分块中引用的图片生成描述（caption）。
+
+    这个变换会找出包含图片引用的分块，用 Vision LLM 生成描述性文字，
+    再把这些描述填充分块的文本/元数据，从而提升视觉内容的检索效果。
+
+    主要特性：
+    - 只处理分块文本中实际引用到的图片（不处理元数据里的所有图片）
+    - 缓存描述，避免对同一张图片重复调用 Vision API
+    - 线程安全的描述缓存，便于将来并行化扩展
     """
     
     def __init__(
@@ -51,27 +50,27 @@ class ImageCaptioner(BaseTransform):
     ):
         self.settings = settings
         self.llm = None
-        # Caption cache: image_id -> caption string (thread-safe with lock)
+        # 描述缓存：图片id -> 描述文本（用锁保证线程安全）
         self._caption_cache: Dict[str, str] = {}
         self._cache_lock = threading.Lock()
         self.max_workers = max_workers or DEFAULT_MAX_WORKERS
-        
-        # Check if vision LLM is enabled in settings
+
+        # 检查配置中是否启用了 vision LLM
         if self.settings.vision_llm and self.settings.vision_llm.enabled:
              try:
                  self.llm = llm or LLMFactory.create_vision_llm(settings)
              except Exception as e:
                  logger.error(f"Failed to initialize Vision LLM: {e}")
-                 # We don't raise here to allow pipeline to continue without captioning
-                 # effectively falling back to no-op for this transform
+                 # 这里不抛异常，让流水线在没有图片描述的情况下也能继续
+                 # 实际效果是这个变换变成空操作（什么都不做）
         else:
              logger.warning("Vision LLM is disabled or not configured. ImageCaptioner will skip processing.")
         
         self.prompt = self._load_prompt()
         
     def _load_prompt(self) -> str:
-        """Load the image captioning prompt from configuration."""
-        # Assuming standard relative path. In production, logic might be robust.
+        """从配置中加载图片描述提示词。"""
+        # 假设使用标准相对路径。生产环境中逻辑可能更健壮。
         from src.core.settings import resolve_path
         prompt_path = resolve_path("config/prompts/image_captioning.txt")
         if prompt_path.exists():
@@ -79,13 +78,13 @@ class ImageCaptioner(BaseTransform):
         return "Describe this image in detail for indexing purposes."
 
     def _find_referenced_image_ids(self, text: str) -> List[str]:
-        """Extract image IDs actually referenced in the chunk text.
-        
-        Args:
-            text: Chunk text content
-            
-        Returns:
-            List of image IDs found in [IMAGE: id] placeholders
+        """提取分块文本中实际引用到的图片 ID。
+
+        参数：
+            text: 分块文本内容
+
+        返回：
+            在 [IMAGE: id] 占位符中找到的图片 ID 列表
         """
         matches = IMAGE_PLACEHOLDER_PATTERN.findall(text)
         return [m.strip() for m in matches]
@@ -96,27 +95,27 @@ class ImageCaptioner(BaseTransform):
         img_path: str, 
         trace: Optional[TraceContext] = None
     ) -> Optional[str]:
-        """Get caption for an image, using cache if available. Thread-safe.
-        
-        Args:
-            img_id: Image identifier
-            img_path: Path to image file
-            trace: Optional trace context
-            
-        Returns:
-            Caption string or None if failed
+        """获取某张图片的描述，有缓存则用缓存。线程安全。
+
+        参数：
+            img_id: 图片标识符
+            img_path: 图片文件路径
+            trace: 可选的链路追踪上下文
+
+        返回：
+            描述字符串，失败时返回 None
         """
-        # Check cache first (thread-safe read)
+        # 先查缓存（线程安全读取）
         with self._cache_lock:
             if img_id in self._caption_cache:
                 logger.debug(f"Caption cache hit for image {img_id}")
                 return self._caption_cache[img_id]
-        
-        # Validate path
+
+        # 校验路径
         if not img_path or not Path(img_path).exists():
             logger.warning(f"Image path not found: {img_path}")
             return None
-        
+
         try:
             image_input = ImageInput(path=img_path)
             response = self.llm.chat_with_image(
@@ -125,8 +124,8 @@ class ImageCaptioner(BaseTransform):
                 trace=trace
             )
             caption = response.content
-            
-            # Cache the result (thread-safe write)
+
+            # 把结果写入缓存（线程安全写入）
             with self._cache_lock:
                 self._caption_cache[img_id] = caption
             logger.debug(f"Generated and cached caption for image {img_id}")
@@ -142,16 +141,15 @@ class ImageCaptioner(BaseTransform):
         chunks: List[Chunk],
         trace: Optional[TraceContext] = None
     ) -> List[Chunk]:
-        """Process chunks and add captions for referenced images.
-        
-        Only processes images that are actually referenced in chunk text
-        via [IMAGE: id] placeholders. Uses caching to avoid redundant API calls.
-        Parallel processing for unique images.
+        """处理分块，给被引用的图片加上描述。
+
+        只处理分块文本中通过 [IMAGE: id] 占位符实际引用到的图片。
+        用缓存避免重复调用 API。对不同的图片做并行处理。
         """
         if not self.llm:
             return chunks
-        
-        # Build image lookup from all chunks' metadata
+
+        # 从所有分块的元数据构建图片查找表
         image_lookup: Dict[str, dict] = {}
         for chunk in chunks:
             if chunk.metadata and "images" in chunk.metadata:
@@ -159,15 +157,15 @@ class ImageCaptioner(BaseTransform):
                     img_id = img_meta.get("id")
                     if img_id and img_id not in image_lookup:
                         image_lookup[img_id] = img_meta
-        
+
         logger.info(f"Found {len(image_lookup)} unique images in document")
-        
-        # Clear cache for new document processing
+
+        # 清空缓存，准备处理新文档
         with self._cache_lock:
             self._caption_cache.clear()
-        
-        # First pass: collect all unique image IDs that need captioning
-        images_to_caption: Dict[str, str] = {}  # img_id -> img_path
+
+        # 第一遍：收集所有需要生成描述的不同图片 ID
+        images_to_caption: Dict[str, str] = {}  # 图片id -> 图片路径
         for chunk in chunks:
             referenced_ids = self._find_referenced_image_ids(chunk.text)
             for img_id in referenced_ids:
@@ -175,12 +173,12 @@ class ImageCaptioner(BaseTransform):
                     img_meta = image_lookup.get(img_id)
                     if img_meta and img_meta.get("path"):
                         images_to_caption[img_id] = img_meta.get("path")
-        
-        # Parallel caption generation for all unique images
+
+        # 为所有不同的图片并行生成描述
         if images_to_caption:
             self._generate_captions_parallel(images_to_caption, trace)
-        
-        # Second pass: apply captions to chunks
+
+        # 第二遍：把描述应用到分块上
         processed_chunks = []
         total_captions_added = 0
         
@@ -197,7 +195,7 @@ class ImageCaptioner(BaseTransform):
             for img_id in referenced_ids:
                 img_id_stripped = img_id.strip()
                 
-                # Get caption from cache (already populated by parallel processing)
+                # 从缓存取描述（并行处理阶段已经填好缓存了）
                 with self._cache_lock:
                     caption = self._caption_cache.get(img_id_stripped)
                 
@@ -229,11 +227,11 @@ class ImageCaptioner(BaseTransform):
         images_to_caption: Dict[str, str],
         trace: Optional[TraceContext] = None
     ) -> None:
-        """Generate captions for multiple images in parallel.
-        
-        Args:
-            images_to_caption: Dict of img_id -> img_path
-            trace: Optional trace context
+        """为多张图片并行生成描述。
+
+        参数：
+            images_to_caption: 图片id -> 图片路径 的字典
+            trace: 可选的链路追踪上下文
         """
         if not images_to_caption:
             return

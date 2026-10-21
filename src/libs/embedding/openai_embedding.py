@@ -1,7 +1,6 @@
-"""OpenAI Embedding implementation.
+"""OpenAI Embedding 实现。
 
-This module provides the OpenAI Embedding implementation that works with
-the standard OpenAI Embeddings API.
+本模块提供与标准 OpenAI Embeddings API 对接的 OpenAI Embedding 实现。
 """
 
 from __future__ import annotations
@@ -13,22 +12,22 @@ from src.libs.embedding.base_embedding import BaseEmbedding
 
 
 class OpenAIEmbeddingError(RuntimeError):
-    """Raised when OpenAI Embeddings API call fails."""
+    """当 OpenAI Embeddings API 调用失败时抛出。"""
 
 
 class OpenAIEmbedding(BaseEmbedding):
-    """OpenAI Embedding provider implementation.
-    
-    This class implements the BaseEmbedding interface for OpenAI's Embeddings API.
-    It supports text-embedding-3-small, text-embedding-3-large, and older models
-    like text-embedding-ada-002.
-    
+    """OpenAI Embedding 提供方实现。
+
+    本类为 OpenAI 的 Embeddings API 实现 BaseEmbedding 接口。
+    支持 text-embedding-3-small、text-embedding-3-large，
+    以及老一些的 text-embedding-ada-002 等模型。
+
     Attributes:
-        api_key: The API key for authentication.
-        model: The model identifier to use.
-        dimensions: Optional dimension reduction (only for text-embedding-3-*).
-        base_url: The base URL for the API (default: OpenAI's endpoint).
-    
+        api_key: 用于身份认证的 API 密钥。
+        model: 使用的模型标识符。
+        dimensions: 可选的维度缩减（仅 text-embedding-3-* 系列支持）。
+        base_url: API 的基础 URL（默认为 OpenAI 的端点）。
+
     Example:
         >>> from src.core.settings import load_settings
         >>> settings = load_settings('config/settings.yaml')
@@ -45,27 +44,27 @@ class OpenAIEmbedding(BaseEmbedding):
         base_url: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize the OpenAI Embedding provider.
-        
+        """初始化 OpenAI Embedding 提供方。
+
         Args:
-            settings: Application settings containing Embedding configuration.
-            api_key: Optional API key override (falls back to settings.embedding.api_key or env var).
-            base_url: Optional base URL override.
-            **kwargs: Additional configuration overrides.
-        
+            settings: 应用配置，包含 Embedding 相关配置。
+            api_key: 可选的 API 密钥覆盖值（找不到时回退到 settings.embedding.api_key 或环境变量）。
+            base_url: 可选的基础 URL 覆盖值。
+            **kwargs: 其他配置覆盖项。
+
         Raises:
-            ValueError: If API key is not provided and not found in environment.
-        
+            ValueError: 当未提供 API 密钥，且环境变量中也找不到时。
+
         Note:
-            When azure_endpoint is present in settings, the provider automatically
-            constructs the Azure-compatible OpenAI URL and uses api-key auth.
+            当 settings 中存在 azure_endpoint 时，提供方会自动构造
+            Azure 兼容的 OpenAI URL，并使用 api-key 认证。
         """
         self.model = settings.embedding.model
-        
-        # Extract optional dimensions setting
+
+        # 提取可选的 dimensions 设置
         self.dimensions = getattr(settings.embedding, 'dimensions', None)
-        
-        # API key: explicit > settings > env var
+
+        # API 密钥优先级：显式传参 > settings > 环境变量
         self.api_key = (
             api_key
             or getattr(settings.embedding, 'api_key', None)
@@ -77,15 +76,15 @@ class OpenAIEmbedding(BaseEmbedding):
                 "OPENAI_API_KEY environment variable, or pass api_key parameter."
             )
         
-        # Azure-compatible mode detection
+        # 检测是否走 Azure 兼容模式
         azure_endpoint = getattr(settings.embedding, 'azure_endpoint', None)
         self.api_version = getattr(settings.embedding, 'api_version', None)
         self._use_azure_auth = False
-        
+
         if base_url:
             self.base_url = base_url
         elif azure_endpoint:
-            # Azure-compatible mode: construct deployment-based URL
+            # Azure 兼容模式：构造基于 deployment 的 URL
             deployment = getattr(settings.embedding, 'deployment_name', None) or self.model
             self.base_url = f"{azure_endpoint.rstrip('/')}/openai/deployments/{deployment}"
             self._use_azure_auth = True
@@ -94,8 +93,8 @@ class OpenAIEmbedding(BaseEmbedding):
         else:
             settings_base_url = getattr(settings.embedding, 'base_url', None)
             self.base_url = settings_base_url if settings_base_url else self.DEFAULT_BASE_URL
-        
-        # Store any additional kwargs for future use
+
+        # 保存额外的 kwargs，留作日后使用
         self._extra_config = kwargs
     
     def embed(
@@ -104,25 +103,25 @@ class OpenAIEmbedding(BaseEmbedding):
         trace: Optional[Any] = None,
         **kwargs: Any,
     ) -> List[List[float]]:
-        """Generate embeddings for a batch of texts using OpenAI API.
-        
+        """使用 OpenAI API 为一批文本生成 embedding（向量）。
+
         Args:
-            texts: List of text strings to embed. Must not be empty.
-            trace: Optional TraceContext for observability (reserved for Stage F).
-            **kwargs: Override parameters (dimensions, etc.).
-        
+            texts: 要向量化的文本字符串列表，不能为空。
+            trace: 可选的 TraceContext，用于可观测性（为 Stage F 预留）。
+            **kwargs: 覆盖参数（dimensions 等）。
+
         Returns:
-            List of embedding vectors, where each vector is a list of floats.
-            The length of the outer list matches len(texts).
-        
+            embedding 向量列表，每个向量是一个浮点数列表。
+            外层列表长度等于 len(texts)。
+
         Raises:
-            ValueError: If texts list is empty or contains invalid entries.
-            OpenAIEmbeddingError: If API call fails.
+            ValueError: 当 texts 为空或包含无效条目时。
+            OpenAIEmbeddingError: 当 API 调用失败时。
         """
-        # Validate input
+        # 校验输入
         self.validate_texts(texts)
-        
-        # Import OpenAI client (lazy import to avoid dependency at module level)
+
+        # 导入 OpenAI 客户端（延迟导入，避免在模块层就引入依赖）
         try:
             from openai import OpenAI
         except ImportError as e:
@@ -130,32 +129,32 @@ class OpenAIEmbedding(BaseEmbedding):
                 "OpenAI Python package not installed. "
                 "Install with: pip install openai"
             ) from e
-        
-        # Initialize OpenAI client
+
+        # 初始化 OpenAI 客户端
         client_kwargs = {
             "api_key": self.api_key,
             "base_url": self.base_url,
         }
-        # Azure-compatible mode: add api-version query param and api-key header
+        # Azure 兼容模式：附加 api-version 查询参数和 api-key 请求头
         if self._use_azure_auth and self.api_version:
             client_kwargs["default_query"] = {"api-version": self.api_version}
             client_kwargs["default_headers"] = {"api-key": self.api_key}
-        
+
         client = OpenAI(**client_kwargs)
-        
-        # Prepare API call parameters
+
+        # 准备 API 调用参数
         api_params = {
             "input": texts,
             "model": self.model,
         }
-        
-        # Add dimensions if specified (only for text-embedding-3-* models)
-        # text-embedding-ada-002 does NOT support the dimensions parameter
+
+        # 仅 text-embedding-3-* 系列才加 dimensions 参数
+        # text-embedding-ada-002 不支持 dimensions 参数
         dimensions = kwargs.get("dimensions", self.dimensions)
         if dimensions is not None and self.model.startswith("text-embedding-3"):
             api_params["dimensions"] = dimensions
-        
-        # Call OpenAI API with retry
+
+        # 调用 OpenAI API，并带重试
         last_error = None
         for attempt in range(3):
             try:
@@ -172,16 +171,16 @@ class OpenAIEmbedding(BaseEmbedding):
                 f"OpenAI Embeddings API call failed after 3 retries: {last_error}"
             ) from last_error
         
-        # Extract embeddings from response
-        # Response format: response.data is a list of objects with .embedding attribute
+        # 从响应中提取 embedding
+        # 响应格式：response.data 是一个对象列表，每个对象带 .embedding 属性
         try:
             embeddings = [item.embedding for item in response.data]
         except (AttributeError, KeyError) as e:
             raise OpenAIEmbeddingError(
                 f"Failed to parse OpenAI Embeddings API response: {e}"
             ) from e
-        
-        # Verify output matches input length
+
+        # 校验输出长度与输入一致
         if len(embeddings) != len(texts):
             raise OpenAIEmbeddingError(
                 f"Output length mismatch: expected {len(texts)}, got {len(embeddings)}"
@@ -190,20 +189,20 @@ class OpenAIEmbedding(BaseEmbedding):
         return embeddings
     
     def get_dimension(self) -> Optional[int]:
-        """Get the embedding dimension for the configured model.
-        
+        """获取当前所配置模型的 embedding 维度。
+
         Returns:
-            The embedding dimension, or None if not deterministic.
-        
+            embedding 维度；若无法确定则返回 None。
+
         Note:
-            For text-embedding-3-* models with custom dimensions, returns
-            the configured dimension. For other models, returns their default.
+            对于配置了自定义维度的 text-embedding-3-* 系列模型，
+            返回配置的维度；其它模型返回其默认维度。
         """
-        # If dimensions explicitly configured, return it
+        # 若显式配置了 dimensions，则直接返回
         if self.dimensions is not None:
             return self.dimensions
-        
-        # Model-specific defaults
+
+        # 各模型默认维度
         model_dimensions = {
             "text-embedding-3-small": 1536,
             "text-embedding-3-large": 3072,

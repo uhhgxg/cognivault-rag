@@ -1,8 +1,8 @@
-"""Azure OpenAI Embedding implementation.
+"""Azure OpenAI Embedding 实现。
 
-This module provides the Azure OpenAI Embedding implementation, which handles
-Azure-specific configuration (endpoint, api-version, deployment names) while
-reusing the core OpenAI embedding logic.
+本模块提供 Azure OpenAI Embedding 实现，
+负责处理 Azure 专属配置（endpoint、api-version、deployment 名称），
+同时复用 OpenAI embedding 的核心逻辑。
 """
 
 from __future__ import annotations
@@ -14,22 +14,22 @@ from src.libs.embedding.base_embedding import BaseEmbedding
 
 
 class AzureEmbeddingError(RuntimeError):
-    """Raised when Azure OpenAI Embeddings API call fails."""
+    """当 Azure OpenAI Embeddings API 调用失败时抛出。"""
 
 
 class AzureEmbedding(BaseEmbedding):
-    """Azure OpenAI Embedding provider implementation.
-    
-    This class implements the BaseEmbedding interface for Azure OpenAI's Embeddings API.
-    It handles Azure-specific configuration like endpoint, api-version, and deployment names.
-    
+    """Azure OpenAI Embedding 提供方实现。
+
+    本类为 Azure OpenAI 的 Embeddings API 实现 BaseEmbedding 接口。
+    负责处理 endpoint、api-version、deployment 名称等 Azure 专属配置。
+
     Attributes:
-        api_key: The Azure API key for authentication.
-        azure_endpoint: The Azure OpenAI endpoint URL.
-        api_version: The API version to use.
-        deployment_name: The deployment name (replaces 'model' in standard OpenAI).
-        dimensions: Optional dimension reduction (only for text-embedding-3-*).
-    
+        api_key: 用于身份认证的 Azure API 密钥。
+        azure_endpoint: Azure OpenAI 的端点 URL。
+        api_version: 使用的 API 版本。
+        deployment_name: 部署名称（在标准 OpenAI 中替代 'model'）。
+        dimensions: 可选的维度缩减（仅 text-embedding-3-* 系列支持）。
+
     Example:
         >>> from src.core.settings import load_settings
         >>> settings = load_settings('config/settings.yaml')
@@ -47,31 +47,31 @@ class AzureEmbedding(BaseEmbedding):
         api_version: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize the Azure OpenAI Embedding provider.
-        
+        """初始化 Azure OpenAI Embedding 提供方。
+
         Args:
-            settings: Application settings containing Embedding configuration.
-            api_key: Optional API key override (falls back to env var AZURE_OPENAI_API_KEY).
-            azure_endpoint: Optional endpoint override (falls back to env var AZURE_OPENAI_ENDPOINT).
-            api_version: Optional API version override.
-            **kwargs: Additional configuration overrides.
-        
+            settings: 应用配置，包含 Embedding 相关配置。
+            api_key: 可选的 API 密钥覆盖值（找不到时回退到环境变量 AZURE_OPENAI_API_KEY）。
+            azure_endpoint: 可选的端点覆盖值（找不到时回退到环境变量 AZURE_OPENAI_ENDPOINT）。
+            api_version: 可选的 API 版本覆盖值。
+            **kwargs: 其他配置覆盖项。
+
         Raises:
-            ValueError: If required Azure-specific configuration is missing.
+            ValueError: 当缺少 Azure 专属的必需配置时。
         """
-        # Azure uses 'deployment_name' instead of 'model'
-        # Try settings.embedding.deployment_name first, fallback to model
+        # Azure 用 'deployment_name' 代替 'model'
+        # 先尝试 settings.embedding.deployment_name，找不到再回退到 model
         self.deployment_name = (
-            getattr(settings.embedding, 'deployment_name', None) or 
+            getattr(settings.embedding, 'deployment_name', None) or
             settings.embedding.model
         )
-        
-        # Extract optional dimensions setting
+
+        # 提取可选的 dimensions 设置
         self.dimensions = getattr(settings.embedding, 'dimensions', None)
-        
-        # API key: explicit parameter > settings.yaml > env var (fallback for backward compatibility)
+
+        # API 密钥优先级：显式传参 > settings.yaml > 环境变量（为向后兼容而设的回退）
         self.api_key = (
-            api_key or 
+            api_key or
             getattr(settings.embedding, 'api_key', None) or
             os.environ.get("AZURE_OPENAI_API_KEY") or
             os.environ.get("OPENAI_API_KEY")
@@ -82,7 +82,7 @@ class AzureEmbedding(BaseEmbedding):
                 "set AZURE_OPENAI_API_KEY environment variable, or pass api_key parameter."
             )
         
-        # Azure endpoint: explicit parameter > settings.yaml > env var (fallback)
+        # Azure 端点优先级：显式传参 > settings.yaml > 环境变量（回退）
         self.azure_endpoint = (
             azure_endpoint or
             getattr(settings.embedding, 'azure_endpoint', None) or
@@ -93,15 +93,15 @@ class AzureEmbedding(BaseEmbedding):
                 "Azure OpenAI endpoint not provided. Configure 'azure_endpoint' in settings.yaml, "
                 "set AZURE_OPENAI_ENDPOINT environment variable, or pass azure_endpoint parameter."
             )
-        
-        # API version: explicit > settings > default
+
+        # API 版本优先级：显式传参 > settings > 默认值
         self.api_version = (
             api_version or
             getattr(settings.embedding, 'api_version', None) or
             self.DEFAULT_API_VERSION
         )
-        
-        # Store any additional kwargs for future use
+
+        # 保存额外的 kwargs，留作日后使用
         self._extra_config = kwargs
     
     def embed(
@@ -110,25 +110,25 @@ class AzureEmbedding(BaseEmbedding):
         trace: Optional[Any] = None,
         **kwargs: Any,
     ) -> List[List[float]]:
-        """Generate embeddings for a batch of texts using Azure OpenAI API.
-        
+        """使用 Azure OpenAI API 为一批文本生成 embedding（向量）。
+
         Args:
-            texts: List of text strings to embed. Must not be empty.
-            trace: Optional TraceContext for observability (reserved for Stage F).
-            **kwargs: Override parameters (dimensions, etc.).
-        
+            texts: 要向量化的文本字符串列表，不能为空。
+            trace: 可选的 TraceContext，用于可观测性（为 Stage F 预留）。
+            **kwargs: 覆盖参数（dimensions 等）。
+
         Returns:
-            List of embedding vectors, where each vector is a list of floats.
-            The length of the outer list matches len(texts).
-        
+            embedding 向量列表，每个向量是一个浮点数列表。
+            外层列表长度等于 len(texts)。
+
         Raises:
-            ValueError: If texts list is empty or contains invalid entries.
-            AzureEmbeddingError: If API call fails.
+            ValueError: 当 texts 为空或包含无效条目时。
+            AzureEmbeddingError: 当 API 调用失败时。
         """
-        # Validate input
+        # 校验输入
         self.validate_texts(texts)
-        
-        # Import Azure OpenAI client (lazy import to avoid dependency at module level)
+
+        # 导入 Azure OpenAI 客户端（延迟导入，避免在模块层就引入依赖）
         try:
             from openai import AzureOpenAI
         except ImportError as e:
@@ -136,83 +136,83 @@ class AzureEmbedding(BaseEmbedding):
                 "OpenAI Python package not installed. "
                 "Install with: pip install openai"
             ) from e
-        
-        # Initialize Azure OpenAI client
+
+        # 初始化 Azure OpenAI 客户端
         client = AzureOpenAI(
             api_key=self.api_key,
             azure_endpoint=self.azure_endpoint,
             api_version=self.api_version,
         )
-        
-        # Prepare API call parameters
-        # Azure uses 'model' parameter but expects deployment name
+
+        # 准备 API 调用参数
+        # Azure 使用 'model' 参数，但实际期望的是 deployment 名称
         api_params = {
             "input": texts,
             "model": self.deployment_name,
         }
-        
-        # Add dimensions if specified (only for text-embedding-3-* models)
-        # text-embedding-ada-002 does NOT support dimensions parameter
+
+        # 仅 text-embedding-3-* 系列才加 dimensions 参数
+        # text-embedding-ada-002 不支持 dimensions 参数
         dimensions = kwargs.get("dimensions", self.dimensions)
         if dimensions is not None and "text-embedding-3" in self.deployment_name.lower():
             api_params["dimensions"] = dimensions
-        
-        # Call Azure OpenAI API
+
+        # 调用 Azure OpenAI API
         try:
             response = client.embeddings.create(**api_params)
         except Exception as e:
             raise AzureEmbeddingError(
                 f"Azure OpenAI Embeddings API call failed: {e}"
             ) from e
-        
-        # Extract embeddings from response
-        # Response format is identical to OpenAI
+
+        # 从响应中提取 embedding
+        # 响应格式与 OpenAI 完全一致
         try:
             embeddings = [item.embedding for item in response.data]
         except (AttributeError, KeyError) as e:
             raise AzureEmbeddingError(
                 f"Failed to parse Azure OpenAI Embeddings API response: {e}"
             ) from e
-        
-        # Verify output matches input length
+
+        # 校验输出长度与输入一致
         if len(embeddings) != len(texts):
             raise AzureEmbeddingError(
                 f"Output length mismatch: expected {len(texts)}, got {len(embeddings)}"
             )
-        
+
         return embeddings
-    
+
     def get_dimension(self) -> Optional[int]:
-        """Get the embedding dimension for the configured deployment.
-        
+        """获取当前所配置部署的 embedding 维度。
+
         Returns:
-            The embedding dimension, or None if not deterministic.
-        
+            embedding 维度；若无法确定则返回 None。
+
         Note:
-            For text-embedding-3-* deployments with custom dimensions, returns
-            the configured dimension. For other deployments, returns their default.
+            对于配置了自定义维度的 text-embedding-3-* 部署，
+            返回配置的维度；其它部署返回其默认维度。
         """
-        # If dimensions explicitly configured, return it
+        # 若显式配置了 dimensions，则直接返回
         if self.dimensions is not None:
             return self.dimensions
-        
-        # Common Azure deployment defaults
-        # Note: deployment names are user-defined, but often follow these patterns
+
+        # Azure 部署的常见默认维度
+        # 注意：部署名是用户自定义的，但通常遵循这些命名模式
         deployment_dimensions = {
             "text-embedding-3-small": 1536,
             "text-embedding-3-large": 3072,
             "text-embedding-ada-002": 1536,
         }
-        
-        # Try exact match first
+
+        # 先尝试精确匹配
         if self.deployment_name in deployment_dimensions:
             return deployment_dimensions[self.deployment_name]
-        
-        # Check for partial matches (e.g., "my-embedding-3-large-prod" contains "embedding-3-large")
-        # Try longer patterns first to avoid false matches
+
+        # 再尝试部分匹配（例如 "my-embedding-3-large-prod" 包含 "embedding-3-large"）
+        # 先匹配较长的模式，避免误匹配
         for model_key in sorted(deployment_dimensions.keys(), key=len, reverse=True):
             if model_key in self.deployment_name:
                 return deployment_dimensions[model_key]
-        
-        # Cannot determine dimension
+
+        # 无法确定维度
         return None

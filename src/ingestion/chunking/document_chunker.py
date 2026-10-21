@@ -1,22 +1,20 @@
-"""Document chunking module - adapts libs.splitter for business layer.
+"""文档切块模块 - 为业务层适配 libs.splitter。
 
-This module serves as the adapter layer between libs.splitter (pure text splitting)
-and Ingestion Pipeline (business object transformation). It transforms Document
-objects into Chunk objects with proper ID generation, metadata inheritance, and
-traceability.
+本模块作为 libs.splitter（纯文本切分）和摄取流水线（业务对象转换）之间的适配层。
+它把 Document 对象转换成 Chunk 对象，同时完成 ID 生成、元数据继承和可追溯信息处理。
 
-Core Value-Add (vs libs.splitter):
-1. Chunk ID Generation: Deterministic and unique IDs for each chunk
-2. Metadata Inheritance: Propagates Document metadata to all chunks
-3. chunk_index: Records sequential position within document
-4. source_ref: Establishes parent-child traceability
-5. Type Conversion: str → Chunk object (core.types contract)
+核心价值（相比 libs.splitter 的增强）：
+1. Chunk ID 生成：为每个分块生成确定性且唯一的 ID
+2. 元数据继承：把 Document 的元数据传递给所有分块
+3. chunk_index：记录分块在文档中的顺序位置
+4. source_ref：建立父子文档的可追溯关系
+5. 类型转换：str → Chunk 对象（遵循 core.types 约定）
 
-Design Principles:
-- Adapter Pattern: Bridges text splitter tool with business objects
-- Config-Driven: Uses SplitterFactory for configuration-based strategy selection
-- Deterministic: Same Document produces same Chunk IDs on repeat splits
-- Type-Safe: Enforces core.types.Chunk contract
+设计原则：
+- 适配器模式：把文本切分工具和业务对象连接起来
+- 配置驱动：通过 SplitterFactory 基于配置选择切分策略
+- 确定性：同一个 Document 重复切分会得到相同的 Chunk ID
+- 类型安全：强制遵守 core.types.Chunk 约定
 """
 
 from __future__ import annotations
@@ -32,18 +30,18 @@ if TYPE_CHECKING:
 
 
 class DocumentChunker:
-    """Converts Documents into Chunks with business-level enrichment.
-    
-    This class wraps a text splitter (from libs) and adds business logic:
-    - Generates stable chunk IDs
-    - Inherits and extends metadata
-    - Maintains document traceability
-    
-    Attributes:
-        _splitter: The underlying text splitter from libs layer
-        _settings: Configuration settings for chunking behavior
-    
-    Example:
+    """把 Document 转换成 Chunk，并加上业务级别的增强信息。
+
+    这个类封装了 libs 层的文本切分器，并加入业务逻辑：
+    - 生成稳定的分块 ID
+    - 继承并扩展元数据
+    - 维护文档的可追溯关系
+
+    属性：
+        _splitter: 底层来自 libs 层的文本切分器
+        _settings: 控制切分行为的配置项
+
+    示例：
         >>> from src.core.settings import load_settings
         >>> from src.core.types import Document
         >>> settings = load_settings("config/settings.yaml")
@@ -60,40 +58,40 @@ class DocumentChunker:
     """
     
     def __init__(self, settings: Settings):
-        """Initialize DocumentChunker with configuration.
-        
-        Args:
-            settings: Configuration settings containing splitter configuration.
-                     The splitter config is expected at settings.splitter.*
-        
-        Raises:
-            ValueError: If splitter configuration is invalid or provider unknown
+        """用配置初始化 DocumentChunker。
+
+        参数：
+            settings: 包含切分器配置的配置项。
+                     切分器配置应在 settings.splitter.* 下。
+
+        可能抛出：
+            ValueError: 如果切分器配置无效或 provider 未知
         """
         self._settings = settings
         self._splitter = SplitterFactory.create(settings)
     
     def split_document(self, document: Document) -> List[Chunk]:
-        """Split a Document into Chunks with full business enrichment.
-        
-        This is the main entry point that orchestrates the transformation:
-        1. Uses underlying splitter to get text fragments
-        2. Generates deterministic IDs for each chunk
-        3. Inherits and extends metadata from document
-        4. Creates Chunk objects conforming to core.types contract
-        
-        Args:
-            document: Source document to split into chunks
-        
-        Returns:
-            List of Chunk objects with:
-            - Unique, deterministic IDs
-            - Inherited metadata + chunk_index + source_ref
-            - Proper type contract (core.types.Chunk)
-        
-        Raises:
-            ValueError: If document has no text or invalid structure
-        
-        Example:
+        """把 Document 切分成 Chunk，并完成完整的业务增强。
+
+        这是主入口，负责编排整个转换流程：
+        1. 用底层切分器得到文本片段
+        2. 为每个分块生成确定性 ID
+        3. 从文档继承并扩展元数据
+        4. 创建符合 core.types 约定的 Chunk 对象
+
+        参数：
+            document: 要切分的源文档
+
+        返回：
+            Chunk 对象列表，每个分块包含：
+            - 唯一、确定性的 ID
+            - 继承的元数据 + chunk_index + source_ref
+            - 正确的类型约定（core.types.Chunk）
+
+        可能抛出：
+            ValueError: 如果文档没有文本或结构无效
+
+        示例：
             >>> doc = Document(
             ...     id="doc_abc",
             ...     text="Section 1 content.\\n\\nSection 2 content.",
@@ -113,7 +111,7 @@ class DocumentChunker:
         if not document.text or not document.text.strip():
             raise ValueError(f"Document {document.id} has no text content to split")
         
-        # Step 1: Use underlying splitter to get text fragments
+        # 第 1 步：用底层切分器得到文本片段
         # 先切割成文本块儿
         text_fragments = self._splitter.split_text(document.text)
         
@@ -123,7 +121,7 @@ class DocumentChunker:
                 f"Text length: {len(document.text)}"
             )
         
-        # Step 2: Transform text fragments into Chunk objects with enrichment
+        # 第 2 步：把文本片段转换成带增强信息的 Chunk 对象
         chunks: List[Chunk] = []
         for index, text in enumerate(text_fragments):
             chunk_id = self._generate_chunk_id(document.id, index, text)
@@ -139,58 +137,57 @@ class DocumentChunker:
         return chunks
     
     def _generate_chunk_id(self, doc_id: str, index: int, text: str) -> str:
-        """Generate unique and deterministic chunk ID.
-        
-        ID format: {doc_id}_{index:04d}_{content_hash}
-        - doc_id: Parent document identifier
-        - index: Sequential position (zero-padded to 4 digits)
-        - content_hash: First 8 chars of text SHA256 hash
-        
-        This ensures:
-        - Uniqueness: Combination of doc_id + index + content_hash
-        - Determinism: Same input always produces same ID
-        - Debuggability: Human-readable structure
-        
-        Args:
-            doc_id: Parent document ID
-            index: Sequential position of chunk (0-based)
-            text: Chunk text content
-        
-        Returns:
-            Unique chunk ID string
-        
-        Example:
+        """生成唯一且确定性的分块 ID。
+
+        ID 格式：{doc_id}_{index:04d}_{content_hash}
+        - doc_id：父文档标识
+        - index：顺序位置（补零到 4 位）
+        - content_hash：文本 SHA256 哈希的前 8 个字符
+
+        这样设计保证：
+        - 唯一性：doc_id + index + content_hash 组合确保唯一
+        - 确定性：相同输入总是产生相同 ID
+        - 可调试：结构对人友好可读
+
+        参数：
+            doc_id：父文档 ID
+            index：分块的顺序位置（从 0 开始）
+            text：分块文本内容
+
+        返回：
+            唯一的分块 ID 字符串
+
+        示例：
             >>> chunker._generate_chunk_id("doc_123", 0, "Hello world")
             'doc_123_0000_c0535e4b'
         """
-        # Compute content hash for uniqueness
+        # 计算内容哈希以保证唯一性
         content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
         
-        # Format: {doc_id}_{index:04d}_{hash_8chars}
+        # 格式：{doc_id}_{index:04d}_{hash_8chars}
         return f"{doc_id}_{index:04d}_{content_hash}"
     
     def _inherit_metadata(self, document: Document, chunk_index: int, chunk_text: str = "") -> dict:
-        """Inherit metadata from document and add chunk-specific fields.
-        
-        This creates a new metadata dict containing:
-        - All fields from document.metadata (copied, not referenced)
-        - chunk_index: Sequential position (0-based)
-        - source_ref: Reference to parent document ID
-        - image_refs: List of image IDs referenced in this chunk (extracted from placeholders)
-        
-        Note: The document-level 'images' field is intentionally excluded from chunk
-        metadata as it would be redundant. Instead, chunk-specific 'image_refs' is
-        populated based on [IMAGE: xxx] placeholders found in the chunk text.
-        
-        Args:
-            document: Source document whose metadata to inherit
-            chunk_index: Sequential position of this chunk
-            chunk_text: The text content of this chunk (used to extract image_refs)
-        
-        Returns:
-            Metadata dict with inherited and chunk-specific fields
-        
-        Example:
+        """从文档继承元数据，并加上分块专属字段。
+
+        这里会创建一个新的元数据字典，包含：
+        - document.metadata 的所有字段（复制，不是引用）
+        - chunk_index：顺序位置（从 0 开始）
+        - source_ref：指向父文档 ID 的引用
+        - image_refs：本分块中引用的图片 ID 列表（从占位符中提取）
+
+        注意：文档级的 'images' 字段不会放进分块元数据，因为会重复。
+        取而代之的是根据分块文本中的 [IMAGE: xxx] 占位符来填充分块专属的 'image_refs'。
+
+        参数：
+            document: 要继承元数据的源文档
+            chunk_index: 本分块的顺序位置
+            chunk_text: 本分块的文本内容（用于提取 image_refs）
+
+        返回：
+            包含继承字段和分块专属字段的元数据字典
+
+        示例：
             >>> doc = Document(
             ...     id="doc_123",
             ...     text="Content",
@@ -208,31 +205,31 @@ class DocumentChunker:
         """
         import re
         
-        # Copy all document metadata (shallow copy is sufficient for primitives)
+        # 复制文档的所有元数据（对于基本类型，浅拷贝就够了）
         chunk_metadata = document.metadata.copy()
         
-        # Get document-level images for lookup
+        # 取出文档级的图片列表，用于后续查找
         doc_images = document.metadata.get("images", [])
         
-        # Remove document-level 'images' field - we'll add chunk-specific images below
+        # 移除文档级的 'images' 字段 - 下面会加上分块专属的图片信息
         chunk_metadata.pop("images", None)
         
-        # Add chunk-specific fields
+        # 添加分块专属字段
         chunk_metadata["chunk_index"] = chunk_index
         chunk_metadata["source_ref"] = document.id
         
-        # Extract image_refs from chunk text by finding [IMAGE: xxx] placeholders
+        # 从分块文本中查找 [IMAGE: xxx] 占位符，提取 image_refs
         image_refs = []
         if chunk_text:
-            # Pattern matches [IMAGE: image_id] placeholders
+            # 匹配 [IMAGE: image_id] 占位符的正则
             pattern = r'\[IMAGE:\s*([^\]]+)\]'
             matches = re.findall(pattern, chunk_text)
             image_refs = [m.strip() for m in matches]
         
         chunk_metadata["image_refs"] = image_refs
         
-        # Build chunk-specific 'images' list with full metadata for referenced images
-        # This is needed by ImageCaptioner to access image paths for Vision API calls
+        # 为被引用的图片构建带完整元数据的分块专属 'images' 列表
+        # ImageCaptioner 需要通过它获取图片路径来调用 Vision API
         chunk_images = []
         if image_refs and doc_images:
             image_lookup = {img.get("id"): img for img in doc_images}
@@ -243,7 +240,7 @@ class DocumentChunker:
         if chunk_images:
             chunk_metadata["images"] = chunk_images
         
-        # Try to determine page_num from the first referenced image
+        # 尝试从第一个被引用的图片推断 page_num
         if chunk_images:
             chunk_metadata["page_num"] = chunk_images[0].get("page")
         

@@ -1,12 +1,12 @@
 """
-Ingestion Pipeline - Offline data ingestion.
+摄取流水线 - 离线数据摄取。
 
-This package contains the data ingestion pipeline:
-- Document loading
-- Text splitting
-- Transform (enrichment)
-- Embedding
-- Storage
+本包包含数据摄取流水线：
+- 文档加载
+- 文本切分
+- 变换（增强）
+- 向量化
+- 存储
 """
 
 __all__ = []

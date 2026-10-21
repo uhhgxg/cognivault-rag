@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAGent 项目架构导读 · 实习生专属版</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#0b0e1a; --bg2:#11152a; --card:#161b33; --card2:#1d2342;
+    --border:#2a3158; --txt:#e6e9f5; --muted:#9aa0c0;
+    --accent:#7c8cff; --accent2:#5ad3c4; --accent3:#c084fc;
+    --warn:#ffb454; --danger:#ff6b6b; --ok:#4ade80;
+    --code-bg:#0d1020;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
+    color:var(--txt);line-height:1.75;font-size:16px;
+    min-height:100vh;
+  }
+  /* 顶部 hero */
+  .hero{
+    position:relative;overflow:hidden;
+    padding:70px 24px 50px;text-align:center;
+    background:radial-gradient(900px 400px at 50% -10%,rgba(124,140,255,.25),transparent 70%),
+               linear-gradient(135deg,#1a1f3d 0%,#0d1020 100%);
+    border-bottom:1px solid var(--border);
+  }
+  .hero .logo{font-size:14px;color:var(--accent2);letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+  .hero h1{font-size:42px;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent3),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:14px}
+  .hero .sub{font-size:18px;color:var(--muted);max-width:760px;margin:0 auto 22px}
+  .badges{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .badge{padding:6px 14px;border:1px solid var(--border);border-radius:20px;font-size:13px;color:var(--txt);background:rgba(255,255,255,.03)}
+  .badge b{color:var(--accent2)}
+
+  /* 布局 */
+  .wrap{display:flex;max-width:1280px;margin:0 auto;gap:28px;padding:30px 24px 80px}
+  .toc{
+    position:sticky;top:20px;align-self:flex-start;flex:0 0 230px;
+    background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 16px;
+    max-height:calc(100vh - 40px);overflow:auto;
+  }
+  .toc h4{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px}
+  .toc a{display:block;padding:6px 10px;color:var(--muted);text-decoration:none;border-radius:8px;font-size:14px;transition:.15s}
+  .toc a:hover{color:var(--txt);background:rgba(124,140,255,.1)}
+  .toc a .n{color:var(--accent2);font-weight:700;margin-right:6px}
+  .content{flex:1;min-width:0}
+
+  /* 卡片 */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 30px;margin-bottom:24px;
+    box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  .card h2{font-size:24px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+  .card h2 .ic{font-size:26px}
+  .card .lead{color:var(--muted);font-size:15px;margin-bottom:20px}
+  .card h3{font-size:18px;font-weight:600;color:var(--accent2);margin:24px 0 12px}
+  .card p{margin-bottom:12px;color:var(--txt)}
+  .card .meta{color:var(--muted)}
+  .quote{border-left:3px solid var(--accent);padding:12px 16px;background:rgba(124,140,255,.06);border-radius:0 10px 10px 0;margin:16px 0;color:var(--txt)}
+  .quote b{color:var(--accent2)}
+
+  /* 一句话概括框 */
+  .oneliner{text-align:center;font-size:20px;font-weight:600;padding:22px;border-radius:14px;
+    background:linear-gradient(135deg,rgba(124,140,255,.15),rgba(92,211,196,.12));border:1px solid var(--border);margin-bottom:8px}
+  .oneliner span{color:var(--accent2)}
+
+  /* 表格 */
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--border)}
+  th{color:var(--accent2);font-weight:600;background:rgba(92,211,196,.06)}
+  tr:hover td{background:rgba(124,140,255,.05)}
+  td code{color:var(--accent3)}
+
+  /* 标签 */
+  .prio{display:inline-block;padding:2px 9px;border-radius:10px;font-size:12px;font-weight:600}
+  .p1{background:rgba(255,107,107,.18);color:#ff8e8e} /* 必看 */
+  .p2{background:rgba(255,180,84,.18);color:#ffc987}  /* 建议看 */
+  .p3{background:rgba(74,222,128,.15);color:#86e6a8}   /* 用到再看 */
+
+  /* 提示框 */
+  .note{display:flex;gap:12px;padding:14px 16px;border-radius:12px;margin:14px 0}
+  .note.star{background:rgba(255,180,84,.1);border:1px solid rgba(255,180,84,.3)}
+  .note.tip{background:rgba(92,211,196,.08);border:1px solid rgba(92,211,196,.25)}
+  .note.warn{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3)}
+  .note .ni{font-size:18px}
+  .note .nb{color:var(--warn)} .note.tip .nb{color:var(--accent2)} .note.warn .nb{color:var(--danger)}
+
+  /* mermaid */
+  .mermaid{background:#0d1020;border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;margin:14px 0;min-height:60px}
+
+  /* code */
+  pre{background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;overflow:auto;font-size:13.5px;margin:12px 0}
+  code{font-family:"Cascadia Code",Consolas,monospace}
+  p code,li code,td code{background:rgba(124,140,255,.12);padding:2px 6px;border-radius:5px;font-size:13px;color:var(--accent3)}
+
+  /* 步骤 */
+  .steps{counter-reset:step;margin:10px 0}
+  .step{position:relative;padding:14px 16px 14px 50px;margin-bottom:10px;background:var(--card2);border:1px solid var(--border);border-radius:10px}
+  .step::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;width:26px;height:26px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent3));color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .step b{color:var(--accent2)}
+
+  /* 互动 */
+  .cta{text-align:center;padding:26px;border-radius:14px;background:linear-gradient(135deg,rgba(192,132,252,.1),rgba(124,140,255,.1));border:1px solid var(--border);margin-top:10px}
+  .cta h3{color:var(--accent3);margin-top:0}
+  .opts{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+  .opts a{padding:10px 18px;border:1px solid var(--border);border-radius:10px;color:var(--txt);text-decoration:none;background:rgba(255,255,255,.03);transition:.15s}
+  .opts a:hover{border-color:var(--accent);background:rgba(124,140,255,.12)}
+
+  /* 类比卡 */
+  .analogy{display:flex;gap:16px;align-items:flex-start;padding:18px;border-radius:12px;background:rgba(255,180,84,.06);border:1px dashed var(--warn);margin:16px 0}
+  .analogy .ai{font-size:30px}
+  .analogy .at b{color:var(--warn)}
+
+  /* mini grid */
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0}
+  .mini{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .mini .mt{font-weight:700;color:var(--accent2);margin-bottom:6px;font-size:15px}
+  .mini .mm{font-size:13.5px;color:var(--muted)}
+
+  /* toc mobile */
+  @media(max-width:900px){
+    .wrap{flex-direction:column;padding:20px 14px 60px}
+    .toc{position:relative;flex:none;top:0;max-height:none}
+    .hero h1{font-size:30px}
+  }
+  .footer{text-align:center;color:var(--muted);font-size:13px;padding:30px;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="logo">Project Architecture Guide</div>
+  <h1>RAGent 项目架构导读</h1>
+  <p class="sub">企业级模块化 RAG 知识库系统 · 实习生保姆级导读（从 0 开始，先全局后局部）</p>
+  <div class="badges">
+    <span class="badge"><b>Python 3.10+</b></span>
+    <span class="badge"><b>LangGraph</b></span>
+    <span class="badge"><b>FastAPI</b></span>
+    <span class="badge"><b>ChromaDB</b></span>
+    <span class="badge"><b>MCP 协议</b></span>
+    <span class="badge"><b>Vue 3</b></span>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="toc" id="toc">
+    <h4>导读目录</h4>
+    <a href="#s1"><span class="n">01</span>一句话概括</a>
+    <a href="#s2"><span class="n">02</span>业务背景</a>
+    <a href="#s3"><span class="n">03</span>项目全景图</a>
+    <a href="#s4"><span class="n">04</span>技术栈速览</a>
+    <a href="#s5"><span class="n">05</span>核心模块一览</a>
+    <a href="#s6"><span class="n">06</span>三大主线数据流</a>
+    <a href="#s7"><span class="n">07</span>分层架构拆解</a>
+    <a href="#s8"><span class="n">08</span>一条提问的完整链路</a>
+    <a href="#s9"><span class="n">09</span>工作流三分支</a>
+    <a href="#s10"><span class="n">10</span>新手生存指南</a>
+    <a href="#s11"><span class="n">11</span>推荐阅读顺序</a>
+    <a href="#s12"><span class="n">12</span>动手试试</a>
+  </nav>
+
+  <main class="content">
+
+    <!-- 01 -->
+    <section class="card" id="s1">
+      <h2><span class="ic">🎯</span>一句话概括</h2>
+      <p class="lead">先建立最粗的全局印象，再往下看细节。</p>
+      <div class="oneliner">
+        RAGent 是一个<span>企业级 RAG 知识库</span>：把文档喂进去，用户用自然语言提问，系统<span>理解意图 → 检索相关知识 → 让大模型基于知识回答</span>，还能记住对话、调用外部工具。
+      </div>
+      <div class="analogy">
+        <div class="ai">📚</div>
+        <div class="at">
+          <b>通俗类比</b>
+          <p>你可以把 RAGent 理解为一个"会查资料的 AI 图书管理员"：传统大模型像一个"只凭脑子答"的人，容易胡说；RAGent 给它配了一座图书馆，每次回答前先去翻相关资料，再据实回答，还标注引用来源。而 RAG（Retrieval-Augmented Generation）就是"检索增强生成"——先检索、再生成。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section class="card" id="s2">
+      <h2><span class="ic">🏢</span>业务背景（先懂业务再看代码）</h2>
+      <p class="lead">为什么要有这个项目？它解决谁的什么问题？</p>
+      <div class="note tip">
+        <span class="ni">💡</span>
+        <div><span class="nb">核心痛点</span>：传统企业知识库只会"关键词搬运"——搜"年假怎么休"只能命中含"年假"两字的文档，换个问法"带薪休假"就找不到了。用户要的是<b>被理解</b>，不是被匹配。</div>
+      </div>
+      <p><b>用户是谁</b>：需要管理企业文档、并对文档内容进行智能问答的团队（内部知识库场景）。</p>
+      <p><b>核心业务场景</b>：</p>
+      <div class="grid3">
+        <div class="mini"><div class="mt">📤 文档摄入</div><div class="mm">上传 PDF/Word/Excel/PPT/Markdown 等多种格式文档，系统自动拆分、贴标签、向量化、存进知识库。</div></div>
+        <div class="mini"><div class="mt">💬 智能问答</div><div class="mm">用户自然语言提问，系统理解意图，混合检索相关知识，让 LLM 基于资料回答并标注引用。</div></div>
+        <div class="mini"><div class="mt">🧠 对话记忆</div><div class="mm">支持多轮对话，记住上下文；还能跨会话记住关于用户的长期事实（LTM）。</div></div>
+        <div class="mini"><div class="mt">🔌 工具增强</div><div class="mm">遇到知识库答不了的，Agent 可调用外部工具（MCP/内置工具）来补全答案。</div></div>
+        <div class="mini"><div class="mt">🗄 会话隔离</div><div class="mm">每个对话一个独立知识库，互不串味，适合多项目/多团队场景。</div></div>
+        <div class="mini"><div class="mt">📊 可观测评估</div><div class="mm">全链路 Trace 追踪 + Ragas 评估质量，知道检索/生成到底好不好。</div></div>
+      </div>
+    </section>
+
+    <!-- 03 -->
+    <section class="card" id="s3">
+      <h2><span class="ic">🗺️</span>项目全景图</h2>
+      <p class="lead">从 30,000 英尺看整体：三大主线 + 基础设施 + 对外接口。</p>
+      <div class="mermaid">
+graph TB
+  subgraph 客户端["客户端层"]
+    U["🖥️ Vue 3 前端 SPA<br/>(对话/上传/Trace面板)"]
+    M["🤖 MCP Client<br/>(Claude/Cursor等)"]
+  end
+
+  subgraph 对话层["① 对话工作流层 (LangGraph)"]
+    WF["RAGWorkflow 状态机<br/>session→intent→retrieve<br/>→generate→memory→archive"]
+  end
+
+  subgraph 摄取层["② 文档摄取层 (Ingestion)"]
+    IP["流水线 6阶段<br/>去重→加载→分块→增强→向量化→入库"]
+  end
+
+  subgraph 检索层["③ 混合检索层 (Hybrid Search)"]
+    HS["查询预处理→Dense向量<br/>+Sparse BM25→RRF融合→Rerank重排"]
+  end
+
+  subgraph 后端["FastAPI 后端 (ragent_backend)"]
+    APP["app.py (路由/WS推送)<br/>+意图/记忆/归档/工具"]
+  end
+
+  subgraph 基础设施["基础设施层 (libs)"]
+    LLM["LLM工厂(OpenAI/Azure<br/>/DeepSeek/Ollama)"]
+    EMB["Embedding工厂"]
+    VS["向量库(ChromaDB)"]
+    PG[("PostgreSQL<br/>元数据/归档/Checkpoint")]
+  end
+
+  subgraph 可观测["可观测性层"]
+    TR["Trace收集器"]
+    DB["Streamlit Dashboard"]
+    EV["Ragas评估器"]
+  end
+
+  U <--> APP
+  M -.stdio.-> MCP["MCP Server<br/>(tools)"]
+  APP --> WF
+  WF --> HS
+  WF --> IP
+  IP --> HS
+  WF --> MCP
+  APP --> IP
+  HS --> VS
+  IP --> VS
+  IP --> PG
+  WF --> PG
+  APP --> PG
+  LLM -.供能.-> WF
+  LLM -.供能.-> IP
+  EMB -.供能.-> HS
+  EMB -.供能.-> IP
+  TR -.收集.-> WF
+  TR -.收集.-> IP
+  TR -.收集.-> HS
+  TR --> DB
+  EV --> HS
+
+  style WF fill:#3b2d6e,stroke:#7c8cff,stroke-width:2px,color:#fff
+  style IP fill:#2d4d5e,stroke:#5ad3c4,stroke-width:2px,color:#fff
+  style HS fill:#4d2d5e,stroke:#c084fc,stroke-width:2px,color:#fff
+  style APP fill:#2d3a5e,stroke:#7c8cff,color:#fff
+      </div>
+      <p class="meta">⭐ 图中三块高亮的<strong>工作流/摄取/检索</strong>就是项目的三大核心主线，先理解这三条线，整个项目就通了。</p>
+    </section>
+
+    <!-- 04 -->
+    <section class="card" id="s4">
+      <h2><span class="ic">⚙️</span>技术栈速览</h2>
+      <p class="lead">每个技术都附一句大白话，别被名词吓到。</p>
+      <table>
+        <tr><th>维度</th><th>技术选型</th><th>大白话解释</th></tr>
+        <tr><td>语言</td><td>Python 3.10+</td><td>项目要求 ≥3.10，实际用 3.12 开发</td></tr>
+        <tr><td>Web 框架</td><td>FastAPI + Uvicorn</td><td>提供 HTTP 接口和 WebSocket 实时推送，Uvicorn 是跑它的服务器</td></tr>
+        <tr><td>工作流引擎</td><td>LangGraph + LangChain</td><td>把"提问→检索→生成"画成一张状态图，节点间可跳转，这就是 Agent 的"大脑流程图"</td></tr>
+        <tr><td>LLM 接入</td><td>自研工厂模式</td><td>一套接口接多家大模型（OpenAI/Azure/DeepSeek/Ollama），换模型只改配置</td></tr>
+        <tr><td>Embedding</td><td>工厂模式</td><td>把文字转成向量（一串数字），让机器能比较"意思相近"</td></tr>
+        <tr><td>向量库</td><td>ChromaDB</td><td>存向量并按相似度检索的专用数据库，本地 SQLite 持久化</td></tr>
+        <tr><td>稀疏检索</td><td>自研 BM25</td><td>传统关键词匹配算法，弥补向量检索对"专有名词/代号"的弱点</td></tr>
+        <tr><td>关系库</td><td>PostgreSQL (asyncpg)</td><td>存对话元数据、归档消息、文件信息、长期记忆、Checkpoint</td></tr>
+        <tr><td>MCP 协议</td><td>官方 MCP SDK</td><td>让外部 AI 客户端（如 Claude）能通过标准协议调用本系统的知识库能力</td></tr>
+        <tr><td>前端</td><td>Vue 3 + Vite + Element Plus</td><td>单页应用，支持对话、上传、Trace 面板</td></tr>
+        <tr><td>Dashboard</td><td>Streamlit</td><td>给运维用的可视化面板，看摄取记录、查询 Trace、评估结果</td></tr>
+        <tr><td>评估</td><td>Ragas + 自定义 Evaluator</td><td>给 RAG 系统打分的框架，看回答准不准、检索全不全</td></tr>
+        <tr><td>文档解析</td><td>markitdown + docx/openpyxl/pptx</td><td>把各种格式文档统一转成 Markdown 再处理</td></tr>
+        <tr><td>中文分词</td><td>结巴分词 jieba</td><td>把中文句子切成词，给关键词检索用</td></tr>
+      </table>
+    </section>
+
+    <!-- 05 -->
+    <section class="card" id="s5">
+      <h2><span class="ic">🧩</span>核心模块一览（按重要性排序）</h2>
+      <p class="lead">知道哪些必须先看，哪些用到再看。</p>
+      <table>
+        <tr><th>模块</th><th>职责（一句话）</th><th>通俗类比</th><th>优先级</th></tr>
+        <tr><td><code>src/ragent_backend/</code></td><td>FastAPI 后端 + 对话工作流主控</td><td>餐厅的前台 + 总调度，接单、派活、回话</td><td><span class="prio p1">⭐⭐⭐ 必看</span></td></tr>
+        <tr><td><code>src/ragent_backend/workflow.py</code></td><td>LangGraph 状态机：意图→检索→生成→记忆</td><td>厨师长的工作流程图，先干嘛后干嘛</td><td><span class="prio p1">⭐⭐⭐ 必看</span></td></tr>
+        <tr><td><code>src/ingestion/</code></td><td>文档摄入全流水线（6 阶段）</td><td>图书馆的采购编目上架流水线</td><td><span class="prio p1">⭐⭐⭐ 必看</span></td></tr>
+        <tr><td><code>src/core/query_engine/</code></td><td>混合检索引擎（向量+BM25+RRF+重排）</td><td>图书管理员的四步检索术</td><td><span class="prio p1">⭐⭐⭐ 必看</span></td></tr>
+        <tr><td><code>src/core/types.py</code></td><td>全链路核心数据类型</td><td>贯穿全场的"标准集装箱"规格</td><td><span class="prio p1">⭐⭐⭐ 必看</span></td></tr>
+        <tr><td><code>src/libs/</code></td><td>第三方能力封装（LLM/Embedding/向量库等工厂）</td><td>外包供应商目录，要啥能力去哪家订</td><td><span class="prio p2">⭐⭐ 建议看</span></td></tr>
+        <tr><td><code>src/mcp_server/</code></td><td>MCP Server 与 3 个工具</td><td>对外开的服务窗口，外部 AI 来取资料</td><td><span class="prio p2">⭐⭐ 建议看</span></td></tr>
+        <tr><td><code>src/tool_agent/</code></td><td>工具调用子图（Agent 调外部工具）</td><td>厨师长遇到不会做的菜，打电话叫外卖</td><td><span class="prio p2">⭐⭐ 建议看</span></td></tr>
+        <tr><td><code>src/core/settings.py</code></td><td>配置加载与校验</td><td>餐厅的规章制度手册</td><td><span class="prio p2">⭐⭐ 建议看</span></td></tr>
+        <tr><td><code>src/observability/</code></td><td>Trace/Dashboard/评估</td><td>质检部 + 监控大屏</td><td><span class="prio p3">⭐ 用到再看</span></td></tr>
+        <tr><td><code>src/core/response/</code></td><td>响应构建（Markdown+引用+多模态）</td><td>把菜装盘、摆好、加说明牌</td><td><span class="prio p3">⭐ 用到再看</span></td></tr>
+        <tr><td><code>frontend/</code></td><td>Vue 3 前端界面</td><td>顾客点餐用的菜单界面</td><td><span class="prio p3">⭐ 用到再看</span></td></tr>
+      </table>
+    </section>
+
+    <!-- 06 -->
+    <section class="card" id="s6">
+      <h2><span class="ic">🌊</span>三大主线数据流</h2>
+      <p class="lead">把项目拆成三条线来看，每条线都别想太复杂，跟着箭头走。</p>
+
+      <h3>主线一：文档摄取（Ingestion）——把书买回来上架</h3>
+      <div class="analogy">
+        <div class="ai">📥</div>
+        <div class="at">
+          <b>类比</b>
+          <p>就像图书馆采购新书：先<b>查重</b>（别买重了）→ <b>拆封</b>（读取内容）→ <b>切章节</b>（分块）→ <b>贴标签写摘要</b>（元数据增强）→ <b>做索引卡</b>（向量化）→ <b>上架</b>（存进向量库）。这样后面才找得到。</p>
+        </div>
+      </div>
+      <div class="mermaid">
+graph LR
+  A["🔒 Integrity 去重<br/>(file_integrity)"] --> B["📄 Loader 加载<br/>(universal_loader)"]
+  B --> C["✂️ Chunker 分块<br/>(document_chunker)"]
+  C --> D["🔧 Transform 增强<br/>(metadata/refine/caption)"]
+  D --> E["🔢 Encode 向量化<br/>(dense+sparse编码)"]
+  E --> F["💾 Storage 入库<br/>(向量库+BM25+图片)"]
+
+  style A fill:#2d4d5e,stroke:#5ad3c4,color:#fff
+  style F fill:#2d4d5e,stroke:#5ad3c4,color:#fff
+      </div>
+      <p>对应代码：<code>src/ingestion/pipeline.py</code> 的 <code>IngestionPipeline</code> 是 6 阶段编排主控。</p>
+
+      <h3>主线二：混合检索（Hybrid Search）——双管齐下找资料</h3>
+      <div class="analogy">
+        <div class="ai">🔍</div>
+        <div class="at">
+          <b>类比</b>
+          <p>找一本书时，向量检索像"按意思找"（你说"带薪休假"能找到"年假"），BM25 像"按字面找"（精确命中关键词）。两个各有短板，所以<b>两条路都走，再用 RRF 把结果揉到一起排序</b>，最后用 Rerank 精排——这是 RAG 检索质量的核心秘诀。</p>
+        </div>
+      </div>
+      <div class="mermaid">
+graph LR
+  Q["📝 查询预处理<br/>(jieba分词/停用词)"] --> D["🧠 Dense 稠密检索<br/>(向量相似度)"]
+  Q --> S["🔤 Sparse 稀疏检索<br/>(BM25关键词)"]
+  D --> RRF["🔀 RRF 融合<br/>(倒数排名融合)"]
+  S --> RRF
+  RRF --> F["📐 元数据过滤"]
+  F --> RR["🏆 Rerank 重排<br/>(交叉编码/LLM)"]
+  RR --> OUT["📦 最终结果"]
+
+  style RRF fill:#4d2d5e,stroke:#c084fc,color:#fff
+  style RR fill:#4d2d5e,stroke:#c084fc,color:#fff
+      </div>
+      <p>对应代码：<code>src/core/query_engine/hybrid_search.py</code> 是编排核心，<code>fusion.py</code> 是 RRF 算法实现。</p>
+
+      <h3>主线三：对话工作流（Conversation）——AI 的决策大脑</h3>
+      <div class="analogy">
+        <div class="ai">🧠</div>
+        <div class="at">
+          <b>类比</b>
+          <p>像一个有流程意识的客服：先<b>开场建档</b>(session)→ <b>判断用户想干嘛</b>(intent，是闲聊还是查资料)→ <b>去查/反问/调工具</b>→ <b>生成回答</b>(generate)→ <b>整理记忆</b>(memory_manage，太长的对话压缩成摘要)→ <b>归档存档</b>(archive)。</p>
+        </div>
+      </div>
+      <div class="mermaid">
+graph LR
+  S["① session<br/>初始化对话"] --> I["② intent<br/>意图识别路由"]
+  I -->|需澄清| CL["clarify 反问澄清"]
+  I -->|查资料| RT["retrieve 检索知识库"]
+  I -->|用工具| TL["tool_subgraph 调外部工具"]
+  CL --> G["⑤ generate LLM生成"]
+  RT --> G
+  TL --> G
+  G --> M["⑥ memory_manage<br/>滑动窗口压缩记忆"]
+  M --> A["⑦ archive<br/>归档到PostgreSQL"]
+  A --> E["END"]
+
+  style I fill:#3b2d6e,stroke:#7c8cff,color:#fff
+  style G fill:#3b2d6e,stroke:#7c8cff,color:#fff
+      </div>
+      <p>对应代码：<code>src/ragent_backend/workflow.py</code> 的 <code>RAGWorkflow._build_graph()</code>，用 LangGraph 的 <code>StateGraph</code> 构建。</p>
+    </section>
+
+    <!-- 07 -->
+    <section class="card" id="s7">
+      <h2><span class="ic">📐</span>分层架构拆解</h2>
+      <p class="lead">用"餐厅"类比理解为什么这样分层，以及谁可以调谁。</p>
+      <div class="mermaid">
+graph TB
+  L1["对外接口层<br/>FastAPI app / MCP Server<br/>(服务员接单)"]
+  L2["业务编排层<br/>RAGWorkflow / IngestionPipeline<br/>(厨师长派活)"]
+  L3["核心引擎层<br/>query_engine / response / chunking<br/>(厨师做菜的核心手艺)"]
+  L4["基础设施层<br/>libs (LLM/Embedding/向量库/Loader)<br/>(外卖供应商+水电煤)"]
+  L1 --> L2 --> L3 --> L4
+
+  style L1 fill:#2d3a5e,stroke:#7c8cff,color:#fff
+  style L2 fill:#3b2d6e,stroke:#7c8cff,color:#fff
+  style L3 fill:#2d4d5e,stroke:#5ad3c4,color:#fff
+  style L4 fill:#1d2342,stroke:#9aa0c0,color:#fff
+      </div>
+      <div class="note star">
+        <span class="ni">⭐</span>
+        <div><span class="nb">铁律</span>：<b>上层可以调下层，下层不能调上层</b>。比如工作流层（L2）可以调检索引擎（L3），但检索引擎绝不能反过来启动一个工作流。这样依赖方向永远是单向的，不会绕成死结。</div>
+      </div>
+      <table>
+        <tr><th>层</th><th>餐厅类比</th><th>本项目对应</th><th>依赖方向</th></tr>
+        <tr><td>对外接口层</td><td>服务员接单、传菜</td><td><code>ragent_backend/app.py</code>、<code>mcp_server/</code></td><td>→ 调下层</td></tr>
+        <tr><td>业务编排层</td><td>厨师长按流程派活</td><td><code>workflow.py</code>、<code>pipeline.py</code></td><td>→ 调下层</td></tr>
+        <tr><td>核心引擎层</td><td>切菜、炒菜、调味的手艺</td><td><code>core/query_engine</code>、<code>ingestion/chunking</code></td><td>→ 调下层</td></tr>
+        <tr><td>基础设施层</td><td>买菜的外包、水电煤气</td><td><code>libs/</code>（LLM/Embedding/向量库工厂）</td><td>被大家调</td></tr>
+      </table>
+    </section>
+
+    <!-- 08 -->
+    <section class="card" id="s8">
+      <h2><span class="ic">🔗</span>一条提问的完整链路（逐跳讲解）</h2>
+      <p class="lead">场景：用户在前端问"去年的销售数据在哪份报告里？"</p>
+      <div class="mermaid">
+sequenceDiagram
+  participant U as 用户(前端)
+  participant A as FastAPI app.py
+  participant W as RAGWorkflow
+  participant I as intent 意图
+  participant R as retrieve 检索
+  participant HS as HybridSearch
+  participant VS as ChromaDB向量库
+  participant G as generate 生成
+  participant PG as PostgreSQL
+  U->>A: POST /chat 发送问题
+  A->>W: 启动工作流(astream)
+  W->>I: 传入用户消息+历史
+  I-->>W: 意图=查资料(RAG分支)
+  W->>R: 调用检索工具
+  R->>HS: QueryKnowledgeHubTool
+  HS->>VS: Dense向量检索+Sparse BM25
+  VS-->>HS: 候选块
+  HS-->>R: RRF融合+Rerank结果
+  R-->>W: 相关知识块+引用
+  W->>G: 知识+问题喂给LLM
+  G-->>W: 流式生成回答(token)
+  W-->>A: yield token/trace
+  A-->>U: WebSocket实时推送
+  W->>PG: archive 归档本轮消息
+      </div>
+      <div class="steps">
+        <div class="step"><b>第1跳：前端发请求</b><br>📁 <code>frontend/src/App.vue</code> → POST <code>/chat</code>，建立 WebSocket 收流式回复。</div>
+        <div class="step"><b>第2跳：FastAPI 接单</b><br>📁 <code>src/ragent_backend/app.py</code>，校验会话、加载历史、启动 <code>RAGWorkflow.astream()</code>。</div>
+        <div class="step"><b>第3跳：意图识别</b><br>📁 <code>src/ragent_backend/intent.py</code> 的 <code>detect_intent</code>，判断走 RAG / 澄清 / 工具三分支。⭐ 这是分叉点。</div>
+        <div class="step"><b>第4跳：混合检索</b><br>📁 <code>src/mcp_server/tools/query_knowledge_hub.py</code> → <code>src/core/query_engine/hybrid_search.py</code>，并行 Dense+Sparse→RRF→Rerank。</div>
+        <div class="step"><b>第5跳：LLM 生成</b><br>📁 <code>workflow.py</code> 的 <code>_generate_node</code>，把知识块+问题塞进 Prompt，流式产出回答。</div>
+        <div class="step"><b>第6跳：记忆压缩</b><br>📁 <code>src/ragent_backend/memory_manager.py</code>，消息超窗时用 <code>RemoveMessage</code> 删旧消息并合并到摘要。</div>
+        <div class="step"><b>第7跳：归档</b><br>📁 <code>src/ragent_backend/store.py</code>，本轮消息写 PostgreSQL，LTM 提取用户事实。</div>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section class="card" id="s9">
+      <h2><span class="ic">🔀</span>工作流三分支：意图路由的关键决策</h2>
+      <p class="lead">intent 节点是整个工作流的核心分叉口，搞懂它就懂了"为什么会走不同路"。</p>
+      <table>
+        <tr><th>分支</th><th>触发条件</th><th>走向</th><th>通俗解释</th></tr>
+        <tr><td><span class="prio p1">clarify 澄清</span></td><td>问题模糊/信息不足</td><td>反问用户补充</td><td>用户问"那个报告"，系统反问"哪份报告？什么时间？"</td></tr>
+        <tr><td><span class="prio p2">rag 检索</span></td><td>明确查知识库</td><td>retrieve→generate</td><td>正常查资料并回答，是主路径</td></tr>
+        <tr><td><span class="prio p3">tool 工具</span></td><td>需调用外部能力</td><td>tool_subgraph</td><td>知识库答不了，Agent 调 MCP/内置工具补全（如查天气、算数）</td></tr>
+      </table>
+      <div class="note tip">
+        <span class="ni">💡</span>
+        <div><span class="nb">理解技巧</span>：LangGraph 的"分支"其实就是<strong>条件边（conditional edge）</strong>——intent 节点输出一个路由 key，图根据 key 决定下一跳去哪。你搜 <code>add_conditional_edges</code> 就能看到这个分叉逻辑。</div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="card" id="s10">
+      <h2><span class="ic">🧭</span>新手生存指南</h2>
+      <p class="lead">少踩坑就是快。这几条比看懂任何代码都重要。</p>
+      <div class="note star">
+        <span class="ni">⭐</span>
+        <div><span class="nb">最重要</span>：<b>先读 <code>config/settings.yaml</code> 再读任何代码</b>。这个项目是"配置驱动"的——LLM 用哪家、检索用啥参数、摄取开关哪些，全在配置里。很多"看起来像 Bug"的问题其实是配置没改对。</div>
+      </div>
+      <div class="note warn">
+        <span class="ni">⚠️</span>
+        <div><span class="nb">第二重要</span>：<b>会话级隔离</b>是核心设计。每个对话的向量集合叫 <code>conv_{conversation_id}</code>，别以为所有文档在一个大池子里——你换对话就换知识库了。调试时若"刚上传的文档查不到"，先确认是不是查错了 collection。</div>
+      </div>
+      <div class="note tip">
+        <span class="ni">💡</span>
+        <div><span class="nb">第三重要</span>：<b>工厂模式到处都是</b>。LLM、Embedding、向量库、Reranker、Splitter 全是 <code>xxx_factory.py</code>。改某个能力的实现，找对应工厂的 <code>create()</code>，别去业务代码里硬改。</div>
+      </div>
+      <div class="note tip">
+        <span class="ni">💡</span>
+        <div><span class="nb">第四</span>：<b>Trace 是你的好朋友</b>。<code>logs/traces.jsonl</code> 记录了每次摄取/查询的完整阶段耗时和元数据，出问题先看 Trace，比看代码快十倍。Dashboard（Streamlit）还能可视化。</div>
+      </div>
+      <div class="note warn">
+        <span class="ni">⚠️</span>
+        <div><span class="nb">第五</span>：<b>入口不止一个</b>。<code>main.py</code> 只是配置校验占位；真正的后端入口是 <code>src/ragent_backend/app.py</code>（FastAPI），MCP 入口是 <code>src/mcp_server/server.py</code>。别被 <code>main.py</code> 误导。</div>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section class="card" id="s11">
+      <h2><span class="ic">📖</span>推荐阅读顺序</h2>
+      <p class="lead">按这个顺序读，5 天能建立系统认知，别一上来就扎进某个细节文件。</p>
+      <table>
+        <tr><th>顺序</th><th>文件/目录</th><th>为什么先看它</th><th>预计耗时</th></tr>
+        <tr><td>1</td><td><code>readme.md</code> + 本导读</td><td>建立全局印象，知道项目干啥</td><td>~15min</td></tr>
+        <tr><td>2</td><td><code>config/settings.yaml</code></td><td>配置驱动，读懂配置就懂了一半行为</td><td>~15min</td></tr>
+        <tr><td>3</td><td><code>src/core/types.py</code></td><td>核心数据类型是贯穿全场的"集装箱规格"</td><td>~15min</td></tr>
+        <tr><td>4</td><td><code>src/ragent_backend/workflow.py</code></td><td>对话工作流是项目大脑，先看 _build_graph 的节点和边</td><td>~30min</td></tr>
+        <tr><td>5</td><td><code>src/ingestion/pipeline.py</code></td><td>摄取流水线 6 阶段，对照本导读主线一</td><td>~25min</td></tr>
+        <tr><td>6</td><td><code>src/core/query_engine/hybrid_search.py</code></td><td>混合检索编排，对照主线二</td><td>~25min</td></tr>
+        <tr><td>7</td><td><code>src/ragent_backend/app.py</code></td><td>FastAPI 路由与 WebSocket，看请求怎么进来的</td><td>~20min</td></tr>
+        <tr><td>8</td><td><code>src/ragent_backend/intent.py</code></td><td>意图路由，搞懂三分支怎么分叉</td><td>~15min</td></tr>
+        <tr><td>9</td><td><code>src/libs/llm/llm_factory.py</code></td><td>工厂模式典型样板，举一反三看懂其他工厂</td><td>~10min</td></tr>
+        <tr><td>10</td><td><code>src/mcp_server/server.py</code> + tools</td><td>MCP 对外接口怎么暴露能力</td><td>~20min</td></tr>
+      </table>
+    </section>
+
+    <!-- 12 -->
+    <section class="card" id="s12">
+      <h2><span class="ic">🎯</span>动手试试（验证你的理解）</h2>
+      <p class="lead">从"只看"过渡到"能改"，做一个小任务检验理解。</p>
+      <div class="note tip">
+        <span class="ni">💡</span>
+        <div><span class="nb">小任务</span>：打开 <code>src/ragent_backend/workflow.py</code>，找到 <code>_build_graph</code> 方法，数一数它 <code>add_node</code> 了几次、<code>add_conditional_edges</code> 在哪里分叉。然后回答：如果用户问"今天天气怎么样"，会走哪个分支？为什么？</div>
+      </div>
+      <p><b>进阶任务</b>：试着在 <code>config/settings.yaml</code> 里找到检索的 <code>top_k</code> 参数，改大/改小，然后跑一次问答，观察返回结果数量和 Trace 里检索阶段的变化。</p>
+
+      <div class="cta">
+        <h3>🧭 下一步你想看哪个？</h3>
+        <p style="color:var(--muted);margin-bottom:6px">告诉我，我帮你深入展开。</p>
+        <div class="opts">
+          <a href="#s8">深入某条具体链路</a>
+          <a href="#s5">深潜某个模块</a>
+          <a href="#s9">看怎么加一个新功能</a>
+        </div>
+      </div>
+
+      <div class="note star" style="margin-top:24px">
+        <span class="ni">💡</span>
+        <div><span class="nb">验证理解（可选）</span>：你能用自己的话说说，用户提一个问题，从进来到回答出去，经过了哪几个节点吗？不用很精确，大概说对就行——能说对就说明你已经建立了系统认知。</div>
+      </div>
+    </section>
+
+    <div class="footer">
+      RAGent 项目架构导读 · 实习生专属版 · 基于源码逐层梳理生成<br>
+      先全局后局部 · 先业务后代码 · 先主干后分支
+    </div>
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({startOnLoad:true, theme:'dark', themeVariables:{
+    primaryColor:'#3b2d6e', primaryTextColor:'#e6e9f5', primaryBorderColor:'#7c8cff',
+    lineColor:'#9aa0c0', secondaryColor:'#1d2342', tertiaryColor:'#161b33',
+    fontSize:'14px'
+  }});
+</script>
+</body>
+</html>

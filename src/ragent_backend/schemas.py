@@ -7,7 +7,7 @@ from langgraph.graph import add_messages
 import uuid
 
 
-# ============== API Models ==============
+# ============== API 模型 ==============
 
 class ChatRequest(BaseModel):
     query: str = Field(..., min_length=1, description="User query")
@@ -41,7 +41,7 @@ class IntentResult(BaseModel):
     reasoning: Optional[str] = None        # LLM 分类理由（可观测）
 
 
-# ============== State Management ==============
+# ============== 状态管理 ==============
 
 def ensure_message_ids(messages: List[AnyMessage]) -> List[AnyMessage]:
     """

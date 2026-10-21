@@ -1,5 +1,5 @@
 """
-Industrial RAG backend package based on FastAPI + LangGraph.
+基于 FastAPI + LangGraph 的工业级 RAG 后端包。
 
 核心特性：
 - 滑动窗口记忆管理（Rolling Memory）

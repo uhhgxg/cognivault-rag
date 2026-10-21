@@ -1,8 +1,7 @@
-"""Ollama LLM implementation for local model inference.
+"""用于本地模型推理的 Ollama LLM 实现。
 
-This module provides the Ollama LLM implementation that works with
-locally running Ollama instances. Ollama enables running LLMs like
-Llama, Mistral, CodeLlama, etc. on local hardware.
+本模块提供与本地运行的 Ollama 实例对接的 Ollama LLM 实现。
+Ollama 可在本地硬件上运行 Llama、Mistral、CodeLlama 等 LLM。
 """
 
 from __future__ import annotations
@@ -14,35 +13,35 @@ from src.libs.llm.base_llm import BaseLLM, ChatResponse, Message
 
 
 class OllamaLLMError(RuntimeError):
-    """Raised when Ollama API call fails.
-    
-    This exception provides clear error messages without exposing
-    sensitive configuration details like internal URLs or credentials.
+    """当 Ollama API 调用失败时抛出。
+
+    本异常提供清晰的错误信息，同时不暴露
+    内部 URL、凭证等敏感配置细节。
     """
 
 
 class OllamaLLM(BaseLLM):
-    """Ollama LLM provider implementation for local inference.
-    
-    This class implements the BaseLLM interface for Ollama's chat API,
-    enabling local LLM inference without cloud dependencies.
-    
+    """用于本地推理的 Ollama LLM 提供方实现。
+
+    本类为 Ollama 的聊天 API 实现 BaseLLM 接口，
+    可以在本地进行 LLM 推理，无需依赖云服务。
+
     Attributes:
-        base_url: The base URL for the Ollama server (default: http://localhost:11434).
-        model: The model identifier to use (e.g., 'llama3', 'mistral').
-        default_temperature: Default temperature for generation.
-        default_max_tokens: Default max tokens for generation (num_predict in Ollama).
-        timeout: Request timeout in seconds.
-    
+        base_url: Ollama 服务器的基础 URL（默认：http://localhost:11434）。
+        model: 使用的模型标识符（例如 'llama3'、'mistral'）。
+        default_temperature: 生成时使用的默认温度。
+        default_max_tokens: 生成时使用的默认最大 token 数（Ollama 中对应 num_predict）。
+        timeout: 请求超时时间，单位为秒。
+
     Example:
         >>> from src.core.settings import load_settings
         >>> settings = load_settings('config/settings.yaml')
         >>> llm = OllamaLLM(settings)
         >>> response = llm.chat([Message(role='user', content='Hello')])
     """
-    
+
     DEFAULT_BASE_URL = "http://localhost:11434"
-    DEFAULT_TIMEOUT = 120.0  # Longer timeout for local inference
+    DEFAULT_TIMEOUT = 120.0  # 本地推理，超时设得长一些
     
     def __init__(
         self,
@@ -51,32 +50,32 @@ class OllamaLLM(BaseLLM):
         timeout: Optional[float] = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize the Ollama LLM provider.
-        
+        """初始化 Ollama LLM 提供方。
+
         Args:
-            settings: Application settings containing LLM configuration.
-            base_url: Optional base URL override (falls back to env var OLLAMA_BASE_URL).
-            timeout: Optional timeout override for requests.
-            **kwargs: Additional configuration overrides.
-        
+            settings: 应用配置，包含 LLM 相关配置。
+            base_url: 可选的基础 URL 覆盖值（找不到时回退到环境变量 OLLAMA_BASE_URL）。
+            timeout: 可选的请求超时覆盖值。
+            **kwargs: 其他配置覆盖项。
+
         Raises:
-            ValueError: If required configuration is missing.
+            ValueError: 当缺少必需配置时。
         """
         self.model = settings.llm.model
         self.default_temperature = settings.llm.temperature
         self.default_max_tokens = settings.llm.max_tokens
-        
-        # Base URL: explicit > env var > default
+
+        # 基础 URL 优先级：显式传参 > 环境变量 > 默认值
         self.base_url = (
-            base_url 
-            or os.environ.get("OLLAMA_BASE_URL") 
+            base_url
+            or os.environ.get("OLLAMA_BASE_URL")
             or self.DEFAULT_BASE_URL
         )
-        
-        # Timeout: explicit > default
+
+        # 超时优先级：显式传参 > 默认值
         self.timeout = timeout or self.DEFAULT_TIMEOUT
-        
-        # Store any additional kwargs for future use
+
+        # 保存额外的 kwargs，留作日后使用
         self._extra_config = kwargs
     
     def chat(
@@ -85,32 +84,32 @@ class OllamaLLM(BaseLLM):
         trace: Optional[Any] = None,
         **kwargs: Any,
     ) -> ChatResponse:
-        """Generate a chat completion using Ollama API.
-        
+        """使用 Ollama API 生成一条聊天补全。
+
         Args:
-            messages: List of conversation messages.
-            trace: Optional TraceContext for observability (reserved for Stage F).
-            **kwargs: Override parameters (temperature, max_tokens, etc.).
-        
+            messages: 对话消息列表。
+            trace: 可选的 TraceContext，用于可观测性（为 Stage F 预留）。
+            **kwargs: 覆盖参数（temperature、max_tokens 等）。
+
         Returns:
-            ChatResponse with generated content and metadata.
-        
+            包含生成内容和元数据的 ChatResponse。
+
         Raises:
-            ValueError: If messages are invalid.
-            OllamaLLMError: If API call fails.
+            ValueError: 当 messages 无效时。
+            OllamaLLMError: 当 API 调用失败时。
         """
-        # Validate input
+        # 校验输入
         self.validate_messages(messages)
-        
-        # Prepare request parameters
+
+        # 准备请求参数
         temperature = kwargs.get("temperature", self.default_temperature)
         max_tokens = kwargs.get("max_tokens", self.default_max_tokens)
         model = kwargs.get("model", self.model)
-        
-        # Convert messages to Ollama API format
+
+        # 将消息转换为 Ollama API 格式
         api_messages = [{"role": m.role, "content": m.content} for m in messages]
-        
-        # Make API call
+
+        # 调用 API
         try:
             response_data = self._call_api(
                 messages=api_messages,
@@ -118,21 +117,21 @@ class OllamaLLM(BaseLLM):
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            
-            # Parse response - Ollama returns different format than OpenAI
-            # Handle both /api/chat (streaming disabled) response format
+
+            # 解析响应 —— Ollama 返回的格式和 OpenAI 不同
+            # 同时兼容 /api/chat（关闭流式）的响应格式
             if "message" in response_data:
-                # Standard chat response
+                # 标准聊天响应
                 content = response_data["message"]["content"]
             elif "response" in response_data:
-                # Legacy generate endpoint response (fallback)
+                # 旧版 generate 端点的响应（回退方案）
                 content = response_data["response"]
             else:
                 raise OllamaLLMError(
                     "[Ollama] Unexpected response format: missing 'message' or 'response' key"
                 )
-            
-            # Build usage stats if available
+
+            # 如有可用信息，则构造 token 使用统计
             usage = None
             if "eval_count" in response_data or "prompt_eval_count" in response_data:
                 usage = {
@@ -168,35 +167,35 @@ class OllamaLLM(BaseLLM):
         temperature: float,
         max_tokens: int,
     ) -> Dict[str, Any]:
-        """Make the actual API call to Ollama.
-        
-        This method is separated to allow easy mocking in tests.
-        
+        """实际向 Ollama 发起 API 调用。
+
+        本方法单独抽出，便于在测试中方便地 mock。
+
         Args:
-            messages: Messages in API format.
-            model: Model identifier.
-            temperature: Generation temperature.
-            max_tokens: Maximum tokens to generate (num_predict in Ollama).
-        
+            messages: API 格式的消息列表。
+            model: 模型标识符。
+            temperature: 生成温度。
+            max_tokens: 最大生成 token 数（Ollama 中对应 num_predict）。
+
         Returns:
-            Raw API response as dictionary.
-        
+            原始 API 响应（字典形式）。
+
         Raises:
-            OllamaLLMError: If the API call fails.
+            OllamaLLMError: 当 API 调用失败时。
         """
         import httpx
-        
+
         url = f"{self.base_url.rstrip('/')}/api/chat"
         headers = {
             "Content-Type": "application/json",
         }
-        
-        # Ollama uses 'num_predict' instead of 'max_tokens'
-        # and 'options' object for model parameters
+
+        # Ollama 用 'num_predict' 代替 'max_tokens'
+        # 模型参数统一放在 'options' 对象里
         payload = {
             "model": model,
             "messages": messages,
-            "stream": False,  # Disable streaming for synchronous response
+            "stream": False,  # 关闭流式，返回同步响应
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
@@ -230,13 +229,13 @@ class OllamaLLM(BaseLLM):
             ) from e
     
     def _parse_error_response(self, response: Any) -> str:
-        """Parse error details from API response.
-        
+        """从 API 响应中解析错误详情。
+
         Args:
-            response: The HTTP response object.
-        
+            response: HTTP 响应对象。
+
         Returns:
-            Human-readable error message without exposing sensitive details.
+            人类可读的错误信息，且不暴露敏感细节。
         """
         try:
             error_data = response.json()

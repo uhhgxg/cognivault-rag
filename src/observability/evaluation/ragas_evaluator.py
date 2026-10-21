@@ -1,14 +1,14 @@
-"""Ragas-based evaluator for RAG quality assessment.
+"""基于 Ragas 的 RAG 质量评估器。
 
-This evaluator wraps the Ragas framework to compute LLM-as-Judge metrics:
-- Faithfulness: Does the answer stick to the retrieved context?
-- Answer Relevancy: Is the answer relevant to the query?
-- Context Precision: Are the retrieved chunks relevant and well-ordered?
+本评估器封装了 Ragas 框架，用于计算 LLM 评分指标：
+- Faithfulness（忠实度）：回答是否忠于检索到的上下文？
+- Answer Relevancy（回答相关性）：回答是否与查询相关？
+- Context Precision（上下文精确度）：检索到的 chunk 是否相关且排序良好？
 
-Design Principles:
-- Pluggable: Implements BaseEvaluator interface, swappable via factory.
-- Config-Driven: LLM/Embedding backend read from settings.yaml.
-- Graceful Degradation: Clear ImportError if ragas not installed.
+设计原则：
+- 可插拔：实现 BaseEvaluator 接口，可通过工厂替换。
+- 配置驱动：LLM/Embedding 后端从 settings.yaml 读取。
+- 优雅降级：若未安装 ragas，则抛出清晰的 ImportError。
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from src.libs.evaluator.base_evaluator import BaseEvaluator
 
 logger = logging.getLogger(__name__)
 
-# Metric name constants
+# 指标名常量
 FAITHFULNESS = "faithfulness"
 ANSWER_RELEVANCY = "answer_relevancy"
 CONTEXT_PRECISION = "context_precision"
@@ -29,7 +29,7 @@ SUPPORTED_METRICS = {FAITHFULNESS, ANSWER_RELEVANCY, CONTEXT_PRECISION}
 
 
 def _import_ragas() -> None:
-    """Validate that ragas is importable, raising a clear error if not."""
+    """验证 ragas 是否可导入，如果不可导入则抛出清晰的错误。"""
     try:
         import ragas  # noqa: F401
     except ImportError as exc:
@@ -40,15 +40,15 @@ def _import_ragas() -> None:
 
 
 class RagasEvaluator(BaseEvaluator):
-    """Evaluator that uses the Ragas framework for LLM-as-Judge metrics.
+    """使用 Ragas 框架进行 LLM 评分的评估器。
 
-    Ragas does NOT require ground-truth labels.  It uses an LLM to judge
-    the quality of the generated answer against the retrieved context.
+    Ragas 不需要标准答案标签。它使用一个 LLM 来评判
+    生成回答相对于检索上下文的质量。
 
-    Supported metrics:
-        - faithfulness: Measures factual consistency with context.
-        - answer_relevancy: Measures how relevant the answer is to the query.
-        - context_precision: Measures relevance/ordering of retrieved chunks.
+    支持的指标：
+        - faithfulness：衡量回答与上下文的事实一致性。
+        - answer_relevancy：衡量回答与查询的相关程度。
+        - context_precision：衡量检索到的 chunk 的相关性/排序。
 
     Example::
 
@@ -67,16 +67,16 @@ class RagasEvaluator(BaseEvaluator):
         metrics: Optional[Sequence[str]] = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize RagasEvaluator.
+        """初始化 RagasEvaluator。
 
         Args:
-            settings: Application settings (used to configure LLM backend).
-            metrics: Metric names to compute. Defaults to all supported.
-            **kwargs: Additional parameters (reserved).
+            settings: 应用配置（用于配置 LLM 后端）。
+            metrics: 要计算的指标名。默认为全部支持的指标。
+            **kwargs: 额外参数（保留）。
 
         Raises:
-            ImportError: If ragas is not installed.
-            ValueError: If unsupported metric names are requested.
+            ImportError: 如果未安装 ragas。
+            ValueError: 如果请求了不支持的指标名。
         """
         _import_ragas()
 
@@ -99,7 +99,7 @@ class RagasEvaluator(BaseEvaluator):
 
         self._metric_names = normalised
 
-    # ── public API ────────────────────────────────────────────────
+    # ── 公共 API ────────────────────────────────────────────────
 
     def evaluate(
         self,
@@ -110,21 +110,21 @@ class RagasEvaluator(BaseEvaluator):
         trace: Optional[Any] = None,
         **kwargs: Any,
     ) -> Dict[str, float]:
-        """Evaluate RAG quality using Ragas LLM-as-Judge metrics.
+        """使用 Ragas 的 LLM 评分指标评估 RAG 质量。
 
         Args:
-            query: The user query string.
-            retrieved_chunks: Retrieved chunks (dicts with 'text' key or strings).
-            generated_answer: The generated answer text. Required for Ragas.
-            ground_truth: Ignored by Ragas (not needed for LLM-as-Judge).
-            trace: Optional TraceContext for observability.
-            **kwargs: Additional parameters.
+            query: 用户查询字符串。
+            retrieved_chunks: 检索到的 chunk（含 'text' 键的字典或字符串）。
+            generated_answer: 生成的回答文本。Ragas 必需。
+            ground_truth: Ragas 会忽略此项（LLM 评分不需要）。
+            trace: 可选，用于可观测性的 TraceContext。
+            **kwargs: 额外参数。
 
         Returns:
-            Dictionary mapping metric names to float scores (0.0 – 1.0).
+            指标名到浮点分数（0.0 – 1.0）的映射字典。
 
         Raises:
-            ValueError: If query/chunks are invalid or generated_answer is missing.
+            ValueError: 如果 query/chunks 无效或 generated_answer 缺失。
         """
         self.validate_query(query)
         self.validate_retrieved_chunks(retrieved_chunks)
@@ -145,7 +145,7 @@ class RagasEvaluator(BaseEvaluator):
 
         return result
 
-    # ── private helpers ───────────────────────────────────────────
+    # ── 私有辅助方法 ───────────────────────────────────────────
 
     def _run_ragas(
         self,
@@ -153,12 +153,12 @@ class RagasEvaluator(BaseEvaluator):
         contexts: List[str],
         answer: str,
     ) -> Dict[str, float]:
-        """Execute Ragas collections metrics and return normalised scores.
+        """执行 Ragas 的 collections 指标并返回归一化后的分数。
 
-        Ragas 0.4+ collections metrics use per-metric ``score()`` instead of
-        the legacy ``evaluate()`` pipeline.  Each metric has its own signature:
-        - Faithfulness / ContextPrecision: (user_input, response, retrieved_contexts)
-        - AnswerRelevancy: (user_input, response)
+        Ragas 0.4+ 的 collections 指标使用每个指标自己的 ``score()``，
+        而不是旧版的 ``evaluate()`` 流水线。每个指标的签名不同：
+        - Faithfulness / ContextPrecision：(user_input, response, retrieved_contexts)
+        - AnswerRelevancy：(user_input, response)
         """
         from ragas.metrics.collections import (
             Faithfulness,
@@ -166,7 +166,7 @@ class RagasEvaluator(BaseEvaluator):
             ContextPrecisionWithoutReference,
         )
 
-        # Build LLM / Embedding wrappers from settings
+        # 根据配置构建 LLM / Embedding 包装器
         llm, embeddings = self._build_wrappers()
 
         scores: Dict[str, float] = {}
@@ -193,13 +193,13 @@ class RagasEvaluator(BaseEvaluator):
         return scores
 
     def _build_wrappers(self) -> tuple:
-        """Build Ragas LLM and Embedding wrappers from project settings.
+        """根据项目配置构建 Ragas 的 LLM 和 Embedding 包装器。
 
-        Uses Ragas 0.4+ native API (InstructorLLM + OpenAIEmbeddings)
-        instead of deprecated LangchainLLMWrapper.
+        使用 Ragas 0.4+ 的原生 API（InstructorLLM + OpenAIEmbeddings），
+        而不是已弃用的 LangchainLLMWrapper。
 
         Returns:
-            Tuple of (llm_wrapper, embeddings_wrapper).
+            (llm_wrapper, embeddings_wrapper) 元组。
         """
         from openai import AsyncAzureOpenAI, AsyncOpenAI
         from ragas.llms import llm_factory
@@ -213,8 +213,8 @@ class RagasEvaluator(BaseEvaluator):
         provider = llm_cfg.provider.lower()
         llm_azure_endpoint = getattr(llm_cfg, "azure_endpoint", None)
 
-        # Azure-compatible mode: if azure_endpoint is configured, use Azure
-        # client even when provider is "openai" (matches project convention).
+        # Azure 兼容模式：如果配置了 azure_endpoint，即使 provider 是 "openai"
+        # 也使用 Azure 客户端（符合项目约定）。
         use_azure_llm = (
             provider == "azure"
             or (provider == "openai" and llm_azure_endpoint)
@@ -244,7 +244,7 @@ class RagasEvaluator(BaseEvaluator):
         emb_provider = emb_cfg.provider.lower()
         emb_azure_endpoint = getattr(emb_cfg, "azure_endpoint", None)
 
-        # Same Azure-compatible mode detection for embeddings
+        # 对 embeddings 采用同样的 Azure 兼容模式检测
         use_azure_emb = (
             emb_provider == "azure"
             or (emb_provider == "openai" and emb_azure_endpoint)
@@ -272,13 +272,13 @@ class RagasEvaluator(BaseEvaluator):
         return llm, embeddings
 
     def _extract_texts(self, chunks: List[Any]) -> List[str]:
-        """Extract text strings from various chunk representations.
+        """从多种 chunk 表示形式中提取文本字符串。
 
         Args:
-            chunks: List of chunk dicts, strings, or objects with .text.
+            chunks: chunk 字典、字符串或带 .text 属性的对象组成的列表。
 
         Returns:
-            List of text strings.
+            文本字符串列表。
         """
         texts: List[str] = []
         for chunk in chunks:
@@ -294,7 +294,7 @@ class RagasEvaluator(BaseEvaluator):
         return texts
 
     def _metrics_from_settings(self, settings: Any) -> List[str]:
-        """Extract metrics list from settings if available."""
+        """如果可用，从 settings 中提取指标列表。"""
         if settings is None:
             return []
         evaluation = getattr(settings, "evaluation", None)
@@ -303,5 +303,5 @@ class RagasEvaluator(BaseEvaluator):
         raw_metrics = getattr(evaluation, "metrics", None)
         if raw_metrics is None:
             return []
-        # Filter to only ragas-supported metrics
+        # 只保留 ragas 支持的指标
         return [m for m in raw_metrics if m.lower() in SUPPORTED_METRICS]

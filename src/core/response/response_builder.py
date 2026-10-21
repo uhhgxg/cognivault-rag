@@ -1,10 +1,10 @@
-"""Response Builder for constructing MCP-formatted responses.
+"""响应构建器，用于构造 MCP 格式的响应。
 
-This module builds structured responses for MCP tools, combining:
-- Human-readable Markdown content with citation markers
-- Structured citation data for machine consumption
-- Multimodal content (text + images) support
-- Proper handling of empty results and error cases
+本模块为 MCP 工具构建结构化响应，整合以下内容：
+- 带引用标记的可读 Markdown 内容
+- 供机器消费的结构化引用数据
+- 多模态内容（文本 + 图片）支持
+- 对空结果和错误情况的正确处理
 """
 
 from __future__ import annotations
@@ -20,14 +20,14 @@ from src.core.types import RetrievalResult
 
 @dataclass
 class MCPToolResponse:
-    """Structured response for MCP tools.
+    """MCP 工具的结构化响应。
     
-    Attributes:
-        content: Human-readable Markdown content with citation markers [1], [2], etc.
-        citations: List of structured citations for reference
-        metadata: Additional response metadata (query, result_count, etc.)
-        is_empty: Whether the search returned no results
-        image_contents: List of MCP ImageContent blocks for multimodal responses
+    属性：
+        content: 带引用标记 [1]、[2] 等的可读 Markdown 内容。
+        citations: 结构化引用列表，供参考。
+        metadata: 额外的响应元数据（query、result_count 等）。
+        is_empty: 搜索是否未返回任何结果。
+        image_contents: 多模态响应用的 MCP ImageContent 块列表。
     """
     content: str
     citations: List[Citation] = field(default_factory=list)
@@ -36,10 +36,10 @@ class MCPToolResponse:
     image_contents: List[types.ImageContent] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for MCP protocol.
+        """转换为 MCP 协议使用的字典。
         
-        Returns:
-            Dictionary with 'content' and 'structuredContent' fields.
+        返回：
+            包含 'content' 和 'structuredContent' 字段的字典。
         """
         return {
             "content": self.content,
@@ -51,11 +51,11 @@ class MCPToolResponse:
         }
     
     def to_mcp_content(self) -> List[Union[types.TextContent, types.ImageContent]]:
-        """Convert to MCP content blocks format.
+        """转换为 MCP content blocks 格式。
         
-        Returns:
-            List of content blocks for MCP CallToolResult.
-            Includes TextContent and optionally ImageContent blocks.
+        返回：
+            用于 MCP CallToolResult 的 content block 列表。
+            包含 TextContent，可选包含 ImageContent 块。
         """
         blocks: List[Union[types.TextContent, types.ImageContent]] = [
             types.TextContent(
@@ -64,11 +64,11 @@ class MCPToolResponse:
             )
         ]
         
-        # Add image blocks if present (multimodal response)
+        # 如果存在图片块则添加（多模态响应）
         if self.image_contents:
             blocks.extend(self.image_contents)
         
-        # Add structured data as a separate text block (JSON format)
+        # 将结构化数据作为单独的文本块添加（JSON 格式）
         if self.citations or self.metadata:
             import json
             structured = {
@@ -88,31 +88,29 @@ class MCPToolResponse:
     
     @property
     def has_images(self) -> bool:
-        """Check if response contains images.
+        """检查响应是否包含图片。
         
-        Returns:
-            True if response has image content, False otherwise.
+        返回：
+            如果响应包含图片内容则返回 True，否则返回 False。
         """
         return len(self.image_contents) > 0
 
 
 class ResponseBuilder:
-    """Builds MCP-formatted responses from retrieval results.
+    """从检索结果构建 MCP 格式的响应。
     
-    This class transforms retrieval results into structured MCP responses,
-    including human-readable Markdown with inline citations and structured
-    citation data for machine consumption.
+    本类将检索结果转换为结构化的 MCP 响应，
+    包括带内联引用的可读 Markdown 和供机器消费的结构化引用数据。
     
-    Supports multimodal responses with images when results contain image
-    references in their metadata.
+    当结果元数据中包含图片引用时，支持带图片的多模态响应。
     
-    Example:
+    示例：
         >>> builder = ResponseBuilder()
         >>> results = [RetrievalResult(chunk_id="doc1_001", score=0.95, ...)]
         >>> response = builder.build(results, "What is Azure OpenAI?")
-        >>> print(response.content)  # Markdown with [1], [2] markers
+        >>> print(response.content)  # 带 [1]、[2] 标记的 Markdown
         >>> print(response.citations[0].source)  # "docs/guide.pdf"
-        >>> print(response.has_images)  # True if images found
+        >>> print(response.has_images)  # 找到图片则为 True
     """
     
     def __init__(
@@ -123,28 +121,28 @@ class ResponseBuilder:
         snippet_max_length: int = 300,
         enable_multimodal: bool = True,
     ) -> None:
-        """Initialize ResponseBuilder.
+        """初始化 ResponseBuilder。
         
-        Args:
-            citation_generator: Optional CitationGenerator instance.
-                If None, creates a default one.
-            multimodal_assembler: Optional MultimodalAssembler for image handling.
-                If None and enable_multimodal=True, creates a default one.
-            max_results_in_content: Maximum results to show in Markdown content.
-            snippet_max_length: Maximum characters per result snippet in content.
-            enable_multimodal: Whether to include images in response (default: True).
+        参数：
+            citation_generator: 可选的 CitationGenerator 实例。
+                如果为 None，则创建默认实例。
+            multimodal_assembler: 可选的 MultimodalAssembler，用于处理图片。
+                如果为 None 且 enable_multimodal=True，则创建默认实例。
+            max_results_in_content: Markdown 内容中最多展示的结果数。
+            snippet_max_length: 内容中每条结果摘要的最大字符数。
+            enable_multimodal: 是否在响应中包含图片（默认：True）。
         """
         self.citation_generator = citation_generator or CitationGenerator()
         self.max_results_in_content = max_results_in_content
         self.snippet_max_length = snippet_max_length
         self.enable_multimodal = enable_multimodal
         
-        # Lazy-load multimodal assembler to avoid circular imports
+        # 懒加载多模态装配器，避免循环导入
         self._multimodal_assembler = multimodal_assembler
     
     @property
     def multimodal_assembler(self) -> "MultimodalAssembler":
-        """Get or create MultimodalAssembler instance."""
+        """获取或创建 MultimodalAssembler 实例。"""
         if self._multimodal_assembler is None:
             from src.core.response.multimodal_assembler import MultimodalAssembler
             self._multimodal_assembler = MultimodalAssembler()
@@ -157,31 +155,31 @@ class ResponseBuilder:
         collection: Optional[str] = None,
         include_images: bool = True,
     ) -> MCPToolResponse:
-        """Build MCP response from retrieval results.
+        """从检索结果构建 MCP 响应。
         
-        Args:
-            results: List of RetrievalResult from search.
-            query: Original user query.
-            collection: Optional collection name.
-            include_images: Whether to include images in response (default: True).
+        参数：
+            results: 搜索返回的 RetrievalResult 列表。
+            query: 原始用户查询。
+            collection: 可选的集合名称。
+            include_images: 是否在响应中包含图片（默认：True）。
             
-        Returns:
-            MCPToolResponse with formatted content, citations, and optional images.
+        返回：
+            MCPToolResponse，包含格式化内容、引用和可选图片。
         """
-        # Handle empty results
+        # 处理空结果
         if not results:
             return self._build_empty_response(query, collection)
         
-        # Generate citations
+        # 生成引用
         citations = self.citation_generator.generate(results)
         
-        # Build Markdown content
+        # 构建 Markdown 内容
         content = self._build_markdown_content(results, citations, query)
         
         # Build metadata
         metadata = self._build_metadata(query, collection, len(results))
         
-        # Assemble image content if enabled
+        # 如启用则装配图片内容
         image_contents: List[types.ImageContent] = []
         if self.enable_multimodal and include_images:
             image_blocks = self.multimodal_assembler.assemble(results, collection)
@@ -244,29 +242,29 @@ class ResponseBuilder:
         citations: List[Citation],
         query: str,
     ) -> str:
-        """Build Markdown content with inline citations.
+        """构建带内联引用的 Markdown 内容。
         
-        Args:
-            results: List of RetrievalResult.
-            citations: List of Citation objects.
-            query: Original query string.
+        参数：
+            results: RetrievalResult 列表。
+            citations: Citation 对象列表。
+            query: 原始查询字符串。
             
-        Returns:
-            Formatted Markdown string.
+        返回：
+            格式化后的 Markdown 字符串。
         """
         lines = []
         
-        # Header
+        # 标题
         lines.append(f"## 检索结果\n")
         lines.append(f"针对查询 **\"{query}\"** 找到 {len(results)} 条相关结果:\n")
         
-        # Results section
+        # 结果区
         display_count = min(len(results), self.max_results_in_content)
         
         for i, (result, citation) in enumerate(zip(results[:display_count], citations[:display_count])):
             marker = self.citation_generator.format_citation_marker(citation.index)
             
-            # Format single result
+            # 格式化单条结果
             lines.append(f"### {marker} 结果 {citation.index}")
             lines.append(f"**相关度:** {citation.score:.2%}")
             lines.append(f"**来源:** `{citation.source}`")
@@ -274,16 +272,16 @@ class ResponseBuilder:
             if citation.page is not None:
                 lines.append(f"**页码:** {citation.page}")
             
-            # Content snippet
+            # 内容摘要
             snippet = self._truncate_text(result.text, self.snippet_max_length)
             lines.append(f"\n> {snippet}\n")
         
-        # Additional results indicator
+        # 额外结果提示
         if len(results) > display_count:
             remaining = len(results) - display_count
             lines.append(f"\n*...还有 {remaining} 条结果未显示*\n")
         
-        # References section
+        # 引用来源区
         lines.append("\n---\n")
         lines.append("## 引用来源\n")
         
@@ -301,15 +299,15 @@ class ResponseBuilder:
         collection: Optional[str],
         result_count: int,
     ) -> Dict[str, Any]:
-        """Build response metadata.
+        """构建响应元数据。
         
-        Args:
-            query: Original query.
-            collection: Collection name.
-            result_count: Number of results.
+        参数：
+            query: 原始查询。
+            collection: 集合名称。
+            result_count: 结果数量。
             
-        Returns:
-            Metadata dictionary.
+        返回：
+            元数据字典。
         """
         metadata = {
             "query": query,
@@ -320,24 +318,24 @@ class ResponseBuilder:
         return metadata
     
     def _truncate_text(self, text: str, max_length: int) -> str:
-        """Truncate text to maximum length.
+        """将文本截断到最大长度。
         
-        Args:
-            text: Text to truncate.
-            max_length: Maximum characters.
+        参数：
+            text: 要截断的文本。
+            max_length: 最大字符数。
             
-        Returns:
-            Truncated text with ellipsis if needed.
+        返回：
+            截断后的文本，必要时末尾加省略号。
         """
         if not text:
             return ""
         
-        # Clean whitespace
+        # 清理空白
         cleaned = " ".join(text.split())
         
         if len(cleaned) <= max_length:
             return cleaned
         
-        # Truncate at word boundary
+        # 在单词边界处截断
         truncated = cleaned[:max_length].rsplit(" ", 1)[0]
         return truncated + "..."

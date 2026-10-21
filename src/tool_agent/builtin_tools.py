@@ -1,5 +1,5 @@
 """
-Builtin Tools Registration — 将现有的 MCP Server 工具注册到 ToolRegistry。
+内置工具注册 — 将现有的 MCP Server 工具注册到 ToolRegistry。
 
 实现双出口：
 - MCP Server 出口：通过 protocol_handler 注册（原有逻辑不变）

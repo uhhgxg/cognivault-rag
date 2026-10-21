@@ -17,7 +17,7 @@ from mcp.server.lowlevel import Server
 from src.observability.logger import get_logger
 
 
-# JSON-RPC 2.0 Error Codes
+# JSON-RPC 2.0 错误码
 class JSONRPCErrorCodes:
     """JSON-RPC 2.0 标准错误码常量。"""
 
@@ -140,7 +140,7 @@ class ProtocolHandler:
                 )
             if isinstance(result, list):
                 return types.CallToolResult(content=result, isError=False)
-            # Default: convert to string
+            # 默认：转成字符串
             return types.CallToolResult(
                 content=[types.TextContent(type="text", text=str(result))],
                 isError=False,
@@ -180,15 +180,15 @@ class ProtocolHandler:
 
 def _register_default_tools(protocol_handler: ProtocolHandler) -> None:
     """注册默认工具集合。"""
-    # Import and register query_knowledge_hub tool
+    # 导入并注册 query_knowledge_hub 工具
     from src.mcp_server.tools.query_knowledge_hub import register_tool as register_query_tool
     register_query_tool(protocol_handler)
-    
-    # Import and register list_collections tool
+
+    # 导入并注册 list_collections 工具
     from src.mcp_server.tools.list_collections import register_tool as register_list_tool
     register_list_tool(protocol_handler)
-    
-    # Import and register get_document_summary tool
+
+    # 导入并注册 get_document_summary 工具
     from src.mcp_server.tools.get_document_summary import register_tool as register_summary_tool
     register_summary_tool(protocol_handler)
 
@@ -214,25 +214,25 @@ def create_mcp_server(
             server_version=server_version,
         )
 
-    # Register default tools if requested
+    # 如果要求注册默认工具，则注册
     if register_tools:
         _register_default_tools(protocol_handler)
 
-    # Create low-level server
+    # 创建低层服务
     server = Server(server_name)
 
-    # Register tools/list handler
+    # 注册 tools/list 处理器
     @server.list_tools()
     async def handle_list_tools() -> List[types.Tool]:
-        """Handle tools/list request."""
+        """处理 tools/list 请求。"""
         return protocol_handler.get_tool_schemas()
 
-    # Register tools/call handler
+    # 注册 tools/call 处理器
     @server.call_tool()
     async def handle_call_tool(
         name: str, arguments: Dict[str, Any]
     ) -> types.CallToolResult:
-        """Handle tools/call request."""
+        """处理 tools/call 请求。"""
         return await protocol_handler.execute_tool(name, arguments)
 
     # 将协议处理器挂在 server 上，便于测试或扩展场景读取。

@@ -20,12 +20,12 @@ from typing import Any, Dict, List, Optional, Union
 import yaml
 
 # ---------------------------------------------------------------------------
-# Repo root & path resolution
+# 仓库根目录与路径解析
 # ---------------------------------------------------------------------------
-# Anchored to this file's location: <repo>/src/core/settings.py → parents[2]
+# 锚定到本文件位置：<repo>/src/core/settings.py → parents[2]
 REPO_ROOT: Path = Path(__file__).resolve().parents[2]
 
-# Default absolute path to settings.yaml
+# settings.yaml 的默认绝对路径
 DEFAULT_SETTINGS_PATH: Path = REPO_ROOT / "config" / "settings.yaml"
 
 
@@ -112,12 +112,12 @@ class LLMSettings:
     model: str
     temperature: float
     max_tokens: int
-    # Azure/OpenAI-specific optional fields
+    # Azure/OpenAI 专属可选字段
     api_key: Optional[str] = None
     api_version: Optional[str] = None
     azure_endpoint: Optional[str] = None
     deployment_name: Optional[str] = None
-    # Ollama-specific optional fields
+    # Ollama 专属可选字段
     base_url: Optional[str] = None
 
 
@@ -126,12 +126,12 @@ class EmbeddingSettings:
     provider: str
     model: str
     dimensions: int
-    # Azure-specific optional fields
+    # Azure 专属可选字段
     api_key: Optional[str] = None
     api_version: Optional[str] = None
     azure_endpoint: Optional[str] = None
     deployment_name: Optional[str] = None
-    # Ollama-specific optional fields
+    # Ollama 专属可选字段
     base_url: Optional[str] = None
 
 
@@ -366,7 +366,7 @@ def _apply_env_overrides(data: Dict[str, Any]) -> None:
         else:
             data_dict[key] = value
 
-    # LLM overrides
+    # LLM 覆盖项
     if os.getenv("RAGENT_LLM_PROVIDER"):
         _set(data, "llm", {**(data.get("llm") or {}), "provider": os.getenv("RAGENT_LLM_PROVIDER")})
     if os.getenv("RAGENT_LLM_MODEL"):
@@ -386,7 +386,7 @@ def _apply_env_overrides(data: Dict[str, Any]) -> None:
         except ValueError:
             pass
 
-    # Embedding overrides
+    # Embedding 覆盖项
     if os.getenv("RAGENT_EMBEDDING_PROVIDER"):
         _set(data, "embedding", {**(data.get("embedding") or {}), "provider": os.getenv("RAGENT_EMBEDDING_PROVIDER")})
     if os.getenv("RAGENT_EMBEDDING_MODEL"):
@@ -401,7 +401,7 @@ def _apply_env_overrides(data: Dict[str, Any]) -> None:
         except ValueError:
             pass
 
-    # Vision LLM overrides
+    # Vision LLM 覆盖项
     if os.getenv("RAGENT_VISION_LLM_ENABLED"):
         val = os.getenv("RAGENT_VISION_LLM_ENABLED", "").lower() in ("true", "1", "yes", "on")
         _set(data, "vision_llm", {**(data.get("vision_llm") or {}), "enabled": val})

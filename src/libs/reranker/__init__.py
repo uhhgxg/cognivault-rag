@@ -1,10 +1,10 @@
 """
-Reranker Module.
+重排序器（Reranker）模块。
 
-This package contains reranker abstractions and implementations:
-- Base reranker class
-- Reranker factory
-- Implementations (LLM Rerank, CrossEncoder, None)
+本包包含重排序器的抽象定义和具体实现：
+- 基础重排序器类（父类）
+- 重排序器工厂
+- 具体实现（基于 LLM 的重排、Cross-Encoder 重排、None 空实现）
 """
 
 from src.libs.reranker.base_reranker import BaseReranker, NoneReranker
